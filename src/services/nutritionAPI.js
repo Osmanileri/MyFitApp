@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { turkishFoodDatabase } from '../data/turkishFoodDatabase';
 
-// FatSecret API configuration - Replace with your actual credentials
-const FATSECRET_CLIENT_ID = 'your_client_id_here';
-const FATSECRET_CLIENT_SECRET = 'your_client_secret_here';
-const FATSECRET_BASE_URL = 'https://platform.fatsecret.com/rest/server.api';
-const FATSECRET_TOKEN_URL = 'https://oauth.fatsecret.com/connect/token';
+// FatSecret API configuration - Using environment variables for security
+const FATSECRET_CLIENT_ID = process.env.FATSECRET_CLIENT_ID || 'your_client_id_here';
+const FATSECRET_CLIENT_SECRET = process.env.FATSECRET_CLIENT_SECRET || 'your_client_secret_here';
+const FATSECRET_BASE_URL = process.env.FATSECRET_BASE_URL || 'https://platform.fatsecret.com/rest/server.api';
+const FATSECRET_TOKEN_URL = process.env.FATSECRET_TOKEN_URL || 'https://oauth.fatsecret.com/connect/token';
 
 // Cache keys
 const CACHE_KEY_PREFIX = 'nutrition_cache_';

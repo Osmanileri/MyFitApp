@@ -7,8 +7,11 @@ const USER_PROFILE_KEY = 'user_profile';
 const USER_PREFERENCES_KEY = 'user_preferences';
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
-// Mock user data for demo purposes
-const DEMO_USERS = [
+// Mock user data for development purposes only
+// Set NODE_ENV=production to disable demo users
+const isDevelopmentMode = process.env.NODE_ENV !== 'production';
+
+const DEMO_USERS = isDevelopmentMode ? [
   {
     id: '1',
     email: 'demo@fitapp.com',
@@ -35,7 +38,7 @@ const DEMO_USERS = [
     gender: 'female',
     createdAt: '2024-01-01T00:00:00Z'
   }
-];
+] : [];
 
 // Default user preferences
 const DEFAULT_PREFERENCES = {

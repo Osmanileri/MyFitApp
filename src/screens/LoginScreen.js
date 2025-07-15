@@ -37,6 +37,12 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleDemoLogin = async () => {
+    // Only allow demo login in development mode
+    if (process.env.NODE_ENV === 'production') {
+      Alert.alert('Demo Giriş Devre Dışı', 'Demo hesabı sadece geliştirme ortamında kullanılabilir.');
+      return;
+    }
+    
     const result = await login({ email: 'demo@fitapp.com', password: 'demo123' });
     
     if (!result.success) {

@@ -58,9 +58,10 @@ export const AuthProvider = ({ children }) => {
           } else {
             // Otomatik demo girişi kontrolü
             const autoLoginDisabled = await AsyncStorage.getItem('autoLoginDisabled');
+            const isDevelopmentMode = process.env.NODE_ENV !== 'production';
             
-            if (!autoLoginDisabled) {
-              // Otomatik demo girişi - geliştirme aşaması için
+            if (!autoLoginDisabled && isDevelopmentMode) {
+              // Otomatik demo girişi - sadece geliştirme ortamında
               console.log('Kullanıcı bulunamadı, otomatik demo girişi yapılıyor...');
               const demoResult = await AuthService.login({ 
                 email: 'demo@fitapp.com', 

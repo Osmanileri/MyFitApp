@@ -1,13 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import CryptoJS from 'crypto-js'; // Geçici olarak devre dışı
 
-const STORAGE_KEYS = {
-  USER: '@diet_app_user',
-  TOKEN: '@diet_app_token',
-  USERS_DB: '@diet_app_users_db',
-};
+// User storage keys
+const USERS_KEY = 'fitapp_users';
+const CURRENT_USER_KEY = 'fitapp_current_user';
+const TOKEN_KEY = 'fitapp_token';
 
-const SECRET_KEY = 'fitapp_secret_key_2024_secure'; // In production, use environment variable
+// Use environment variable for security
+const SECRET_KEY = process.env.AUTH_SECRET_KEY || 'fitapp_secret_key_2024_secure'; // Fallback for development
 
 class AuthService {
   // Encrypt sensitive data (simplified for demo)
@@ -74,7 +74,7 @@ class AuthService {
   // Get users database
   async getUsersDB() {
     try {
-      const usersDB = await AsyncStorage.getItem(STORAGE_KEYS.USERS_DB);
+      const usersDB = await AsyncStorage.getItem(USERS_KEY);
       return usersDB ? JSON.parse(usersDB) : {};
     } catch {
       return {};
@@ -83,13 +83,13 @@ class AuthService {
 
   // Save users database
   async saveUsersDB(usersDB) {
-    await AsyncStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(usersDB));
+    await AsyncStorage.setItem(USERS_KEY, JSON.stringify(usersDB));
   }
 
   // Clear users database (for development)
   async clearUsersDB() {
     try {
-      await AsyncStorage.removeItem(STORAGE_KEYS.USERS_DB);
+      await AsyncStorage.removeItem(USERS_KEY);
       console.log('Users database cleared');
     } catch (error) {
       console.error('Error clearing users DB:', error);
@@ -99,6 +99,14 @@ class AuthService {
   // Initialize demo users if database is empty
   async initializeDemoUsers() {
     try {
+      // Only initialize demo users in development mode
+      const isDevelopmentMode = process.env.NODE_ENV !== 'production';
+      
+      if (!isDevelopmentMode) {
+        console.log('Demo users disabled in production mode');
+        return;
+      }
+      
       console.log('Initializing demo users...');
       
       // Geliştirme aşamasında eski verileri temizle
@@ -225,10 +233,10 @@ class AuthService {
 
       await this.saveUsersDB(usersDB);
 
-      // Generate token and save user session
-      const token = this.generateToken(userId);
-      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
+              // Generate token and save user session
+        const token = this.generateToken(userId);
+        await AsyncStorage.setItem(TOKEN_KEY, token);
+        await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
 
       return { success: true, user: newUser };
     } catch (error) {
@@ -262,9 +270,10 @@ class AuthService {
 
       // Geliştirme aşaması için basitleştirilmiş şifre kontrolü
       let passwordMatch = false;
+      const isDevelopmentMode = process.env.NODE_ENV !== 'production';
       
-      if (email.toLowerCase() === 'demo@fitapp.com' || email.toLowerCase() === 'test@fitapp.com') {
-        // Demo hesaplar için direkt şifre kontrolü
+      if (isDevelopmentMode && (email.toLowerCase() === 'demo@fitapp.com' || email.toLowerCase() === 'test@fitapp.com')) {
+        // Demo hesaplar için direkt şifre kontrolü (sadece development'da)
         passwordMatch = userData.password === password;
         console.log('Demo account password check:', passwordMatch);
       } else {
@@ -282,10 +291,10 @@ class AuthService {
       // Remove password from user object
       const { password: _, ...user } = userData;
 
-      // Generate token and save user session
-      const token = this.generateToken(user.id);
-      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+              // Generate token and save user session
+        const token = this.generateToken(user.id);
+        await AsyncStorage.setItem(TOKEN_KEY, token);
+        await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 
       console.log('Login successful for:', user.name);
       return { success: true, user };
@@ -295,22 +304,22 @@ class AuthService {
     }
   }
 
-  // Logout user
-  async logout() {
-    await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
-  }
+      // Logout user
+    async logout() {
+      await AsyncStorage.multiRemove([TOKEN_KEY, CURRENT_USER_KEY]);
+    }
 
-  // Get current user
-  async getCurrentUser() {
-    try {
-      const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
-      if (!token || !this.validateToken(token)) {
-        await this.logout();
-        return null;
-      }
+      // Get current user
+    async getCurrentUser() {
+      try {
+        const token = await AsyncStorage.getItem(TOKEN_KEY);
+        if (!token || !this.validateToken(token)) {
+          await this.logout();
+          return null;
+        }
 
-      const userStr = await AsyncStorage.getItem(STORAGE_KEYS.USER);
-      return userStr ? JSON.parse(userStr) : null;
+        const userStr = await AsyncStorage.getItem(CURRENT_USER_KEY);
+        return userStr ? JSON.parse(userStr) : null;
     } catch {
       return null;
     }
@@ -346,7 +355,7 @@ class AuthService {
       await this.saveUsersDB(usersDB);
 
       // Update stored user
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userResponse));
+      await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userResponse));
 
       return { success: true, user: userResponse };
     } catch (error) {
