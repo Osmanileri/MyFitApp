@@ -3,17 +3,18 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
-import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { useDietStore } from './src/store/dietStore';
+import useAuthStore from './src/store/authStore';
+import useDietStore from './src/store/dietStore';
 import { appTheme } from './src/theme/simpleTheme';
 import { safeAsync } from './src/utils/asyncUtils';
+import { NotificationProvider } from './src/services/NotificationService';
 
 // Auth & Setup Screens
 import SplashScreen from './src/screens/SplashScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import MainScreen from './src/screens/MainScreen';
 
@@ -115,7 +116,13 @@ const LoadingScreen = () => (
 // Main App Navigation Component
 function AppNavigator() {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, initializeAuth, initializeDemoDb, loadDemoUser } = useAuthStore();
+
+  // Initialize Firebase auth on startup
+  useEffect(() => {
+    const unsubscribe = initializeAuth();
+    return unsubscribe;
+  }, []);
 
   // Initialize app on startup
   useEffect(() => {
@@ -123,6 +130,22 @@ function AppNavigator() {
     
     const initApp = async () => {
       try {
+        // Initialize demo database
+        await safeAsync(async () => {
+          const { initializeDemoDb } = useAuthStore.getState();
+          if (initializeDemoDb) {
+            await initializeDemoDb();
+          }
+        });
+        
+        // Check if demo user was previously logged in
+        await safeAsync(async () => {
+          const { loadDemoUser } = useAuthStore.getState();
+          if (loadDemoUser) {
+            await loadDemoUser('demo-user-id');
+          }
+        });
+        
         // Initialize other stores in a controlled way
         await safeAsync(() => {
           const { initializeMockData } = workoutStore.getState();
@@ -223,11 +246,11 @@ function AppNavigator() {
 export default function App() {
   return (
     <PaperProvider theme={appTheme}>
-      <ErrorBoundary>
-        <AuthProvider>
+      <NotificationProvider>
+        <ErrorBoundary>
           <AppNavigator />
-        </AuthProvider>
-      </ErrorBoundary>
+        </ErrorBoundary>
+      </NotificationProvider>
     </PaperProvider>
   );
 }

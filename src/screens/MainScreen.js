@@ -9,7 +9,6 @@ import DietScreen from './DietScreen';
 import WorkoutDashboardScreen from './WorkoutDashboardScreen';
 import ProgressScreen from './ProgressScreen';
 import ProfileScreen from './ProfileScreen';
-import { Colors } from '../theme/appTheme';
 import { appTheme } from '../theme/simpleTheme';
 
 const Tab = createBottomTabNavigator();
@@ -97,7 +96,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             >
               {isFocused && (
                 <LinearGradient
-                  colors={Colors.gradients.primary}
+                  colors={[appTheme.colors.primary, appTheme.colors.primaryDark]}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -122,26 +121,26 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                   paddingHorizontal: 12,
                   paddingVertical: 8,
                   borderRadius: 12,
-                  backgroundColor: isFocused ? Colors.primary + '10' : 'transparent',
+                  backgroundColor: isFocused ? appTheme.colors.primary + '10' : 'transparent',
                   minWidth: 60,
                 }}
               >
                 <View style={{
                   padding: 8,
                   borderRadius: 12,
-                  backgroundColor: isFocused ? Colors.primary : 'transparent',
+                  backgroundColor: isFocused ? appTheme.colors.primary : 'transparent',
                 }}>
                   <MaterialCommunityIcons
                     name={iconName}
                     size={24}
-                    color={isFocused ? Colors.white : Colors.tab.inactive}
+                    color={isFocused ? appTheme.colors.white : appTheme.colors.textSecondary}
                   />
                 </View>
                 
                 <Text style={{
                   fontSize: 12,
                   fontWeight: isFocused ? '600' : 'normal',
-                  color: isFocused ? Colors.tab.active : Colors.tab.inactive,
+                  color: isFocused ? appTheme.colors.primary : appTheme.colors.textSecondary,
                   marginTop: 4,
                   textAlign: 'center',
                 }}>

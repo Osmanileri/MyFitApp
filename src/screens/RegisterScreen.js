@@ -9,64 +9,91 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/authStore';
 import { appTheme } from '../theme/simpleTheme';
 
 const RegisterScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
+  const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  const { register, isLoading, error, clearError } = useAuth();
+  const { register, isLoading, error, clearError } = useAuthStore();
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'Ad gereklidir';
+    }
+    
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Soyad gereklidir';
+    }
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email gereklidir';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Geçerli bir email adresi girin';
+    }
+    
+    if (!formData.password) {
+      newErrors.password = 'Şifre gereklidir';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Şifre en az 6 karakter olmalıdır';
+    }
+    
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Şifre tekrarı gereklidir';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Şifreler eşleşmiyor';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleRegister = async () => {
-    const { name, email, password, confirmPassword } = formData;
-
-    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Hata', 'Şifreler eşleşmiyor');
-      return;
-    }
-
-    const result = await register({
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password,
-      confirmPassword,
-    });
+    if (!validateForm()) return;
     
-    if (!result.success) {
+    clearError();
+    
+    const userInfo = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      displayName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+    };
+    
+    const result = await register(formData.email.trim().toLowerCase(), formData.password, userInfo);
+    
+    if (result.success) {
+      Alert.alert('Başarılı', 'Hesabınız başarıyla oluşturuldu!', [
+        { text: 'Tamam', onPress: () => navigation.navigate('Login') }
+      ]);
+    } else {
       Alert.alert('Kayıt Hatası', result.error || 'Kayıt oluşturulamadı');
     }
   };
 
-  React.useEffect(() => {
-    if (error) {
-      Alert.alert('Hata', error);
-      clearError();
-    }
-  }, [error]);
-
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={appTheme.colors.primary} />
-      
       {/* Header with gradient */}
       <LinearGradient
         colors={[appTheme.colors.primary, appTheme.colors.primaryDark]}
@@ -74,7 +101,7 @@ const RegisterScreen = ({ navigation }) => {
       >
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Hesap Oluştur</Text>
-          <Text style={styles.headerSubtitle}>Diyet takibine başlamak için kayıt olun</Text>
+          <Text style={styles.headerSubtitle}>Fitness yolculuğunuza başlayın</Text>
         </View>
       </LinearGradient>
 
@@ -89,21 +116,35 @@ const RegisterScreen = ({ navigation }) => {
         >
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Ad Soyad</Text>
+              <Text style={styles.label}>Ad</Text>
               <TextInput
-                style={styles.input}
-                value={formData.name}
-                onChangeText={(value) => handleInputChange('name', value)}
-                placeholder="Adınızı ve soyadınızı girin"
+                style={[styles.input, errors.firstName && styles.inputError]}
+                value={formData.firstName}
+                onChangeText={(value) => handleInputChange('firstName', value)}
+                placeholder="Adınızı girin"
                 placeholderTextColor={appTheme.colors.textSecondary}
                 autoCapitalize="words"
               />
+              {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Soyad</Text>
+              <TextInput
+                style={[styles.input, errors.lastName && styles.inputError]}
+                value={formData.lastName}
+                onChangeText={(value) => handleInputChange('lastName', value)}
+                placeholder="Soyadınızı girin"
+                placeholderTextColor={appTheme.colors.textSecondary}
+                autoCapitalize="words"
+              />
+              {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.email && styles.inputError]}
                 value={formData.email}
                 onChangeText={(value) => handleInputChange('email', value)}
                 placeholder="email@example.com"
@@ -112,11 +153,12 @@ const RegisterScreen = ({ navigation }) => {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
+              {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Şifre</Text>
-              <View style={styles.passwordContainer}>
+              <View style={[styles.passwordContainer, errors.password && styles.inputError]}>
                 <TextInput
                   style={styles.passwordInput}
                   value={formData.password}
@@ -134,11 +176,12 @@ const RegisterScreen = ({ navigation }) => {
                   <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
                 </TouchableOpacity>
               </View>
+              {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Şifre Tekrar</Text>
-              <View style={styles.passwordContainer}>
+              <View style={[styles.passwordContainer, errors.confirmPassword && styles.inputError]}>
                 <TextInput
                   style={styles.passwordInput}
                   value={formData.confirmPassword}
@@ -156,6 +199,7 @@ const RegisterScreen = ({ navigation }) => {
                   <Text style={styles.eyeText}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
                 </TouchableOpacity>
               </View>
+              {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
             </View>
 
             <TouchableOpacity
@@ -168,9 +212,11 @@ const RegisterScreen = ({ navigation }) => {
                 colors={[appTheme.colors.primary, appTheme.colors.primaryDark]}
                 style={styles.buttonGradient}
               >
-                <Text style={styles.registerButtonText}>
-                  {isLoading ? 'Kayıt oluşturuluyor...' : 'Kayıt Ol'}
-                </Text>
+                {isLoading ? (
+                  <ActivityIndicator color={appTheme.colors.white} />
+                ) : (
+                  <Text style={styles.registerButtonText}>Kayıt Ol</Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -247,6 +293,15 @@ const styles = StyleSheet.create({
     backgroundColor: appTheme.colors.white,
     color: appTheme.colors.text,
     ...appTheme.shadows.small,
+  },
+  inputError: {
+    borderColor: appTheme.colors.error || '#ff4444',
+  },
+  errorText: {
+    color: appTheme.colors.error || '#ff4444',
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 4,
   },
   passwordContainer: {
     flexDirection: 'row',

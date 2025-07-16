@@ -205,33 +205,33 @@ const ExerciseAPI = {
       console.log('🔧 Yeni API endpoint test ediliyor...');
       console.log('🔑 API Key:', EXERCISE_API_CONFIG.API_KEY);
       console.log('🌐 URL:', `${EXERCISE_API_CONFIG.BASE_URL}/data.json`);
-      
+
       const response = await fetch(`${EXERCISE_API_CONFIG.BASE_URL}/data.json`, {
         method: 'GET',
         headers: EXERCISE_API_CONFIG.HEADERS
       });
-      
+
       console.log('📡 Response Status:', response.status);
       console.log('📡 Response OK:', response.ok);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ API Error Response:', errorText);
         throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
-      
+
       const data = await response.json();
       console.log('✅ API Response başarılı!');
       console.log('📊 Gelen veri türü:', typeof data);
       console.log('📊 Veri boyutu:', JSON.stringify(data).length);
       console.log('📊 İlk 100 karakter:', JSON.stringify(data).substring(0, 100));
-      
+
       return {
         success: true,
         message: 'Yeni API çalışıyor! ✅',
         data: data
       };
-      
+
     } catch (error) {
       console.error('❌ API Test hatası:', error);
       return {
@@ -246,27 +246,27 @@ const ExerciseAPI = {
   fetchFromAPI: async () => {
     try {
       console.log('📱 API\'den egzersizler çekiliyor...');
-      
+
       const response = await fetch(`${EXERCISE_API_CONFIG.BASE_URL}/data.json`, {
         method: 'GET',
         headers: EXERCISE_API_CONFIG.HEADERS
       });
-      
+
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('📥 API\'den ham veri alındı');
-      
+
       // Veri yapısını analiz et
       console.log('🔍 Veri yapısı analizi:');
       console.log('- Veri türü:', typeof data);
       console.log('- Array mi?', Array.isArray(data));
       console.log('- Objeler:', Object.keys(data));
-      
+
       return data;
-      
+
     } catch (error) {
       console.error('❌ API\'den veri çekme hatası:', error);
       throw error;
@@ -276,7 +276,7 @@ const ExerciseAPI = {
   // Kesinlikle çalışan GIF'ler (Statik) - Fallback
   getWorkingExercises: () => {
     console.log('🎬 Kesinlikle çalışan GIF\'ler yükleniyor...');
-    
+
     const workingExercises = [
       {
         id: 1,
@@ -490,7 +490,7 @@ const ExerciseAPI = {
         targetMuscle: 'Karın'
       }
     ];
-    
+
     console.log('✅ Statik GIF\'ler hazır:', workingExercises.length, 'adet');
     return workingExercises;
   },
@@ -505,14 +505,14 @@ const ExerciseAPI = {
   getExercisesByMuscleGroup: async (muscleGroup) => {
     try {
       const allExercises = await ExerciseAPI.getAllExercises();
-      const filtered = allExercises.filter(exercise => 
-        exercise.category === muscleGroup || 
+      const filtered = allExercises.filter(exercise =>
+        exercise.category === muscleGroup ||
         exercise.muscleGroups.includes(muscleGroup)
       );
-      
+
       console.log(`✅ ${muscleGroup} için ${filtered.length} egzersiz bulundu`);
       return filtered;
-      
+
     } catch (error) {
       console.error('getExercisesByMuscleGroup hatası:', error);
       const fallbackExercises = ExerciseAPI.getWorkingExercises();

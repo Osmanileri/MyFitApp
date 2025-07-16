@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'firstName', 'lastName']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email;
+    }
+    
+    function isValidDailyData(data) {
+      return data.keys().hasAll(['date', 'meals', 'totalCalories', 'totalProtein', 'totalCarbs', 'totalFat']) &&
+             data.date is string &&
+             data.meals is map &&
+             data.totalCalories is number &&
+             data.totalProtein is number &&
+             data.totalCarbs is number &&
+             data.totalFat is number;
+    }
+    
+    function isValidWorkout(data) {
+      return data.keys().hasAll(['date', 'exercises', 'totalDuration', 'completed']) &&
+             data.date is string &&
+             data.exercises is list &&
+             data.totalDuration is number &&
+             data.completed is bool;
+    }
+    
+    function isValidProgress(data) {
+      return data.keys().hasAll(['date', 'weight']) &&
+             data.date is string &&
+             data.weight is number;
+    }
+    
+    // Users collection - Ana kullanıcı profilleri
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      allow create: if isAuthenticated() && isValidUser(resource.data);
+      allow update: if isOwner(userId) && isValidUser(resource.data);
+      allow delete: if isOwner(userId);
+      
+      // User'ın günlük beslenme verileri
+      match /dailyData/{date} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDailyData(resource.data);
+        allow update: if isOwner(userId) && isValidDailyData(resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Meal items sub-collection
+        match /meals/{mealId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      
+      // User'ın egzersiz verileri
+      match /workouts/{workoutId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidWorkout(resource.data);
+        allow update: if isOwner(userId) && isValidWorkout(resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Exercise sets sub-collection
+        match /exercises/{exerciseId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      
+      // User'ın ilerleme verileri
+      match /progress/{progressId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidProgress(resource.data);
+        allow update: if isOwner(userId) && isValidProgress(resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Progress photos sub-collection
+        match /photos/{photoId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      
+      // User'ın hatırlatıcıları
+      match /reminders/{reminderId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User'ın besin supplementleri
+      match /supplements/{supplementId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User'ın su tüketimi
+      match /waterIntake/{date} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User'ın beslenme hedefleri
+      match /nutritionGoals/{goalId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User'ın özel tarifler
+      match /recipes/{recipeId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User'ın sosyal aktiviteleri
+      match /socialActivity/{activityId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User'ın app settings
+      match /settings/{settingId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Demo hesap özel izinleri
+    match /users/demo-user-uid {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                     request.auth.token.email == 'demo@fitapp.com';
+      
+      match /{document=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && 
+                       request.auth.token.email == 'demo@fitapp.com';
+      }
+    }
+    
+    // Public collections - Herkese açık veriler
+    match /exercises/{exerciseId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Sadece admin tarafından yazılabilir
+    }
+    
+    match /foods/{foodId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Sadece admin tarafından yazılabilir
+    }
+    
+    match /workoutTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Sadece admin tarafından yazılabilir
+    }
+    
+    match /nutritionFacts/{factId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Sadece admin tarafından yazılabilir
+    }
+    
+    // Admin collection - Sadece admin erişimi
+    match /admin/{document=**} {
+      allow read, write: if isAuthenticated() && 
+                           request.auth.token.email in [
+                             'admin@fitapp.com',
+                             'developer@fitapp.com'
+                           ];
+    }
+    
+    // App metadata
+    match /metadata/{document} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Sadece admin tarafından yazılabilir
+    }
+    
+    // Analytics data (anonim)
+    match /analytics/{document} {
+      allow read: if false; // Sadece admin tarafından okunabilir
+      allow write: if isAuthenticated(); // Kullanıcılar analytics yazabilir
+    }
+    
+    // Feedback collection
+    match /feedback/{feedbackId} {
+      allow read: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid ||
+                     request.auth.token.email in ['admin@fitapp.com', 'developer@fitapp.com']);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Crash reports
+    match /crashReports/{reportId} {
+      allow read: if false; // Sadece admin tarafından okunabilir
+      allow write: if isAuthenticated(); // Kullanıcılar crash report yazabilir
+    }
+    
+    // Varsayılan: Her şey yasak
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

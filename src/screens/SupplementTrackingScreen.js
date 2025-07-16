@@ -1,42 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Surface, Card, Chip, FAB, Portal, Modal, TextInput } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSupplementStore } from '../store/supplementStore';
+import { NotificationProvider } from '../services/NotificationService';
 
 export default function SupplementTrackingScreen() {
-  const [supplements, setSupplements] = useState([
-    { id: 1, name: 'Vitamin D3', dose: '2000 IU', time: '08:00', taken: true, color: '#ff9800' },
-    { id: 2, name: 'Omega-3', dose: '1000mg', time: '12:00', taken: false, color: '#4caf50' },
-    { id: 3, name: 'Creatine', dose: '5g', time: '18:00', taken: false, color: '#2196f3' },
-    { id: 4, name: 'Protein', dose: '30g', time: '20:00', taken: false, color: '#9c27b0' },
-  ]);
+  const {
+    supplements,
+    isLoading,
+    error,
+    initializeStore,
+    addSupplement,
+    toggleSupplementTaken,
+    getCompletionStats
+  } = useSupplementStore();
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [newSupplement, setNewSupplement] = useState({ name: '', dose: '', time: '08:00' });
 
-  const toggleTaken = (id) => {
-    setSupplements(prev => prev.map(s => s.id === id ? { ...s, taken: !s.taken } : s));
+  useEffect(() => {
+    initializeStore();
+  }, []);
+
+  const toggleTaken = async (supplementId) => {
+    await toggleSupplementTaken(supplementId);
   };
 
-  const addSupplement = () => {
+  const handleAddSupplement = async () => {
     if (newSupplement.name && newSupplement.dose) {
       const colors = ['#ff9800', '#4caf50', '#2196f3', '#9c27b0', '#f44336', '#00bcd4'];
-      const newItem = {
-        id: Date.now(),
+      const supplementData = {
         ...newSupplement,
         taken: false,
         color: colors[Math.floor(Math.random() * colors.length)]
       };
-      setSupplements(prev => [...prev, newItem]);
+      
+      await addSupplement(supplementData);
       setNewSupplement({ name: '', dose: '', time: '08:00' });
       setModalVisible(false);
     }
   };
 
-  const takenCount = supplements.filter(s => s.taken).length;
+  const stats = getCompletionStats();
+  const takenCount = stats.takenToday;
 
   return (
-    <LinearGradient colors={['#f3e5f5', '#fff']} style={styles.gradient}>
+    <NotificationProvider>
+      <LinearGradient colors={['#f3e5f5', '#fff']} style={styles.gradient}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Supplement Takibi</Text>
         
@@ -51,7 +63,7 @@ export default function SupplementTrackingScreen() {
         <Text style={styles.sectionTitle}>Günlük Supplementler</Text>
         
         {supplements.map(supplement => (
-          <Card key={supplement.id} style={[styles.supplementCard, { borderLeftColor: supplement.color }]} elevation={3}>
+          <Card key={supplement.supplementId || supplement.id} style={[styles.supplementCard, { borderLeftColor: supplement.color }]} elevation={3}>
             <Card.Content style={styles.cardContent}>
               <View style={styles.supplementInfo}>
                 <View style={[styles.colorDot, { backgroundColor: supplement.color }]} />
@@ -64,7 +76,7 @@ export default function SupplementTrackingScreen() {
                 <Chip 
                   icon={supplement.taken ? "check-circle" : "circle-outline"} 
                   style={[styles.statusChip, supplement.taken && styles.takenChip]}
-                  onPress={() => toggleTaken(supplement.id)}
+                  onPress={() => toggleTaken(supplement.supplementId || supplement.id)}
                 >
                   {supplement.taken ? 'Alındı' : 'Alınmadı'}
                 </Chip>
@@ -99,7 +111,7 @@ export default function SupplementTrackingScreen() {
                 <Button mode="outlined" onPress={() => setModalVisible(false)} style={styles.modalBtn}>
                   İptal
                 </Button>
-                <Button mode="contained" onPress={addSupplement} style={styles.modalBtn}>
+                <Button mode="contained" onPress={handleAddSupplement} style={styles.modalBtn}>
                   Ekle
                 </Button>
               </View>
@@ -114,6 +126,7 @@ export default function SupplementTrackingScreen() {
         />
       </ScrollView>
     </LinearGradient>
+    </NotificationProvider>
   );
 }
 

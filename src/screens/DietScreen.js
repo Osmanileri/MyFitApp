@@ -1,1624 +1,1024 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
-  SafeAreaView,
-  StatusBar,
-  Animated,
-  Text as RNText,
-  FlatList,
-  Platform,
-  Image
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { 
-  Text, 
-  Card, 
-  Modal, 
-  Portal, 
-  TextInput, 
-  Button,
   ActivityIndicator,
-  Surface,
-  FAB
-} from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+  RefreshControl,
+  Dimensions,
+  Animated,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useDietStore } from '../store/dietStore';
-import * as Haptics from 'expo-haptics';
-import EditFoodModal from '../components/EditFoodModal';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+import useDietStore from '../store/dietStore';
+import useAuthStore from '../store/authStore';
+import MealSection from '../components/MealSection';
+import { Colors } from '../theme/appTheme';
 
-// 🎨 MODERN COLOR PALETTE
-const colors = {
-  primary: '#667eea',
-  primaryDark: '#5a67d8',
-  secondary: '#f093fb',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  background: '#f8fafc',
-  surface: '#ffffff',
-  text: '#1f2937',
-  textSecondary: '#6b7280',
-  textLight: '#9ca3af',
-  calories: '#ef4444',
-  protein: '#8b5cf6',
-  carbs: '#06b6d4',
-  fat: '#f59e0b',
-  water: '#0ea5e9'
+const { width } = Dimensions.get('window');
+
+// Modern Gradient Renkler
+const gradients = {
+  primary: ['#667eea', '#764ba2'],
+  success: ['#4ade80', '#22c55e'],
+  warning: ['#fbbf24', '#f59e0b'],
+  info: ['#38bdf8', '#0ea5e9'],
+  purple: ['#c084fc', '#a855f7'],
+  orange: ['#fb923c', '#f97316'],
+  pink: ['#f472b6', '#ec4899'],
+  blue: ['#60a5fa', '#3b82f6'],
+  soft: ['#e0e7ff', '#c7d2fe'],
+  softGreen: ['#dcfce7', '#bbf7d0'],
+  softOrange: ['#fed7aa', '#fdba74'],
+  softPink: ['#fce7f3', '#f9a8d4'],
 };
 
-// 🍽️ MEAL TYPES WITH ENHANCED DATA
-const MEAL_TYPES = [
-  {
-    key: 'breakfast',
-    label: 'Kahvaltı',
-    emoji: '🌅',
-    time: '07:00 - 10:00',
-    targetCalories: 400,
-    color: '#f59e0b',
-    lightColor: '#fef3c7'
-  },
-  {
-    key: 'lunch', 
-    label: 'Öğle Yemeği',
-    emoji: '☀️',
-    time: '12:00 - 15:00',
-    targetCalories: 500,
-    color: '#10b981',
-    lightColor: '#d1fae5'
-  },
-  {
-    key: 'dinner',
-    label: 'Akşam Yemeği', 
-    emoji: '🌙',
-    time: '18:00 - 21:00',
-    targetCalories: 450,
-    color: '#8b5cf6',
-    lightColor: '#ede9fe'
-  },
-  {
-    key: 'snacks',
-    label: 'Atıştırmalık',
-    emoji: '🍎',
-    time: 'Gün boyu',
-    targetCalories: 200,
-    color: '#ef4444',
-    lightColor: '#fee2e2'
-  }
-];
-
-// 🚀 QUICK FOODS WITH VISUAL IMPROVEMENTS
-const QUICK_FOODS = [
-  { 
-    name: 'Su', 
-    calories: 0, 
-    icon: 'cup-water', 
-    color: colors.water,
-    amount: '1 bardak',
-    macros: { protein: 0, carbs: 0, fat: 0 }
-  },
-  { 
-    name: 'Kahve', 
-    calories: 5, 
-    icon: 'coffee', 
-    color: '#8b4513',
-    amount: '1 fincan',
-    macros: { protein: 0.3, carbs: 1, fat: 0 }
-  },
-  { 
-    name: 'Muz', 
-    calories: 105, 
-    icon: 'food-variant', 
-    color: '#fbbf24',
-    amount: '1 orta',
-    macros: { protein: 1.3, carbs: 27, fat: 0.4 }
-  },
-  { 
-    name: 'Elma', 
-    calories: 80, 
-    icon: 'apple', 
-    color: '#ef4444',
-    amount: '1 orta',
-    macros: { protein: 0.4, carbs: 21, fat: 0.3 }
-  },
-  { 
-    name: 'Yumurta', 
-    calories: 70, 
-    icon: 'egg', 
-    color: '#f59e0b',
-    amount: '1 adet',
-    macros: { protein: 6, carbs: 0.6, fat: 5 }
-  },
-  { 
-    name: 'Fındık', 
-    calories: 185, 
-    icon: 'food-variant', 
-    color: '#8b4513',
-    amount: '1 avuç',
-    macros: { protein: 4.3, carbs: 3.9, fat: 18.5 }
-  }
-];
-
-// 🎯 CIRCULAR PROGRESS COMPONENT
-const CircularProgress = ({ size = 120, strokeWidth = 8, progress, color, children }) => {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+// Modern Pulse Animation Component
+const PulseView = ({ children, style }) => {
+  const [pulseAnim] = useState(new Animated.Value(1));
   
   useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: progress,
-      duration: 1000,
-      useNativeDriver: false,
-    }).start();
-  }, [progress]);
+    const pulse = () => {
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]).start(() => pulse());
+    };
+    pulse();
+  }, []);
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={[styles.progressBackground, { width: size, height: size, borderRadius: size/2 }]}>
-        <Animated.View
-          style={[
-            styles.progressForeground,
-            {
-              width: size,
-              height: size,
-              borderRadius: size/2,
-              borderWidth: strokeWidth,
-              borderColor: color,
-              transform: [{
-                rotate: animatedValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0deg', `${progress * 360}deg`]
-                })
-              }]
-            }
-          ]}
-        />
-        <View style={styles.progressContent}>
-          {children}
-        </View>
-      </View>
+    <Animated.View style={[style, { transform: [{ scale: pulseAnim }] }]}>
+      {children}
+    </Animated.View>
+  );
+};
+
+// Modern Dairesel Progress Component
+const ModernCircularProgress = ({ percentage, size = 140, strokeWidth = 12 }) => {
+  const actualPercentage = Math.min(Math.max(percentage || 0, 0), 100);
+  
+  const getProgressColor = () => {
+    if (actualPercentage === 0) return '#e2e8f0';
+    if (actualPercentage >= 100) return '#fbbf24';  // Altın sarısı (tam dolu)
+    if (actualPercentage > 80) return '#f59e0b';    // Turuncu (yüksek)
+    if (actualPercentage < 50) return '#fb923c';    // Kırmızı (düşük)
+    return '#4ade80';  // Yeşil (normal)
+  };
+  
+  const progressColor = getProgressColor();
+  const trackColor = '#e2e8f0';
+  const innerSize = size - strokeWidth * 3.5; // Make inner circle smaller
+  
+  // Calculate progress circle size based on percentage
+  const minProgressSize = innerSize * 1; // Minimum progress size (starts smaller)
+  const maxProgressSize = size; // Maximum progress size
+  const progressSize = minProgressSize + ((maxProgressSize - minProgressSize) * (actualPercentage / 100));
+  
+  return (
+    <View style={[styles.modernCircularContainer, { width: size, height: size }]}>
+      {/* Background Circle (Track) */}
+      <View style={[styles.circleTrack, { 
+        width: size, 
+        height: size, 
+        borderRadius: size / 2,
+        backgroundColor: trackColor,
+      }]} />
+      
+      {/* Progress Circle - grows outward based on percentage */}
+      {actualPercentage > 0 && (
+        <View style={[styles.progressCircle, { 
+          width: progressSize, 
+          height: progressSize, 
+          borderRadius: progressSize / 2,
+          backgroundColor: progressColor,
+        }]} />
+      )}
+      
+      {/* Inner white circle (fixed size) */}
+      <View style={[styles.progressInner, {
+        width: innerSize,
+        height: innerSize,
+        borderRadius: innerSize / 2,
+        backgroundColor: '#ffffff',
+      }]} />
     </View>
   );
 };
 
-export default function DietScreen({ navigation, route }) {
-  const { addFood, getTotalCalories, getTotalMacros, getWaterIntake, addWater, dailyMeals, loadDailyData, selectedDate } = useDietStore();
-  const meals = dailyMeals; // Use state directly for real-time updates
-  const [editFoodModalVisible, setEditFoodModalVisible] = useState(false);
-  const [editingFood, setEditingFood] = useState(null);
-  const [editingMealType, setEditingMealType] = useState(null);
-  const [editingFoodIndex, setEditingFoodIndex] = useState(null);
-  const [waterCount, setWaterCount] = useState(4);
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  // Initialize data on mount
-  useEffect(() => {
-    let isMounted = true;
-    
-    const initializeData = async () => {
-      try {
-        await loadDailyData(selectedDate);
-        if (isMounted) {
-          setIsInitialized(true);
-        }
-      } catch (error) {
-        console.error('Failed to load daily data:', error);
-        if (isMounted) {
-          setIsInitialized(true);
-        }
-      }
+// Modern Status Badge
+const ModernStatusBadge = ({ status, percentage }) => {
+  const getStatusConfig = () => {
+    if (percentage < 70) return { 
+      colors: gradients.warning, 
+      icon: 'trending-down', 
+      text: 'Düşük',
+      bgColor: '#fff3e0'
     };
-    
-    initializeData();
-    
-    return () => {
-      isMounted = false;
+    if (percentage > 120) return { 
+      colors: gradients.warning, 
+      icon: 'trending-up', 
+      text: 'Yüksek',
+      bgColor: '#ffebee'
     };
-  }, [selectedDate, loadDailyData]);
-
-  // Listen for food data from FoodDetailScreen
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log('DietScreen focused, route.params:', route.params);
-      const addFoodData = route.params?.addFoodData;
-      console.log('AddFoodData:', addFoodData, 'isInitialized:', isInitialized);
-      
-      if (addFoodData && isInitialized) {
-        const { mealType, foodData } = addFoodData;
-        console.log('DietScreen received food data:', mealType, foodData);
-        
-        // Use setTimeout to avoid setState during render
-        setTimeout(async () => {
-          try {
-            await addFood(mealType, foodData);
-            console.log('Food added successfully');
-            
-            // Show success message
-            Alert.alert(
-              '✅ Başarılı!',
-              `${foodData.name} ${mealType} öğününe eklendi.`,
-              [{ text: 'Tamam' }]
-            );
-          } catch (error) {
-            console.error('Failed to add food:', error);
-            Alert.alert('❌ Hata', 'Besin eklenirken bir sorun oluştu.');
-          }
-        }, 0);
-        
-        // Clear the parameters to prevent duplicate additions
-        navigation.setParams({ addFoodData: null });
-      }
-    }, [route.params?.addFoodData, addFood, navigation, isInitialized])
-  );
-  
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-
-  useEffect(() => {
-    // Only run animations after data is initialized
-    if (isInitialized) {
-      // Animations
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [isInitialized]); // Run after initialization
-
-  // Calculate daily stats (memoized to prevent unnecessary re-renders)
-  const totalCalories = React.useMemo(() => {
-    if (!isInitialized) return 0;
-    return getTotalCalories();
-  }, [isInitialized, meals, getTotalCalories]);
-  
-  const dailyGoal = 2000;
-  
-  const macros = React.useMemo(() => {
-    if (!isInitialized) return { protein: 0, carbs: 0, fat: 0 };
-    return getTotalMacros();
-  }, [isInitialized, meals, getTotalMacros]);
-  
-  const calorieProgress = Math.min(totalCalories / dailyGoal, 1);
-
-  const openAddFoodModal = (mealType) => {
-    // Navigate to full screen FoodSearchScreen instead of modal
-    navigation.navigate('FoodSearch', { 
-      mealType: mealType
-    });
-    
-    if (Haptics?.impactAsync) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    return { 
+      colors: gradients.success, 
+      icon: 'checkmark-circle', 
+      text: 'Mükemmel',
+      bgColor: '#e8f5e8'
+    };
   };
 
-  // 🎯 ENHANCED QUICK ADD HANDLER
-  const handleQuickAdd = async (food, mealKey) => {
-    try {
-      const enhancedFood = {
-        name: food.name,
-        calories: food.calories,
-        protein: food.macros.protein,
-        carbs: food.macros.carbs,
-        fat: food.macros.fat,
-        amount: food.amount,
-        timestamp: new Date().toISOString(),
-        source: 'quick_add'
-      };
-
-      await addFood(mealKey, enhancedFood);
-      
-      Alert.alert(
-        '✅ Başarılı!', 
-        `${food.name} (${food.calories} kcal) ${MEAL_TYPES.find(m => m.key === mealKey)?.label || 'öğününe'} eklendi.`,
-        [{ text: 'Tamam', style: 'default' }]
-      );
-
-      if (Haptics?.notificationAsync) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-
-    } catch (error) {
-      console.error('Quick add error:', error);
-      Alert.alert('❌ Hata', 'Besin eklenirken bir sorun oluştu.');
-    }
-  };
-
-  // 🎯 PROFESSIONAL CALORIE TRACKING HEADER
-  const renderHeader = () => (
-    <View style={styles.header}>
+  const config = getStatusConfig();
+  
+  return (
+    <View style={[styles.modernBadge, { backgroundColor: config.bgColor }]}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.headerGradient}
+        colors={config.colors}
+        style={styles.badgeGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
       >
-        <SafeAreaView>
-          <View style={styles.headerContent}>
-            {/* Top Row */}
-            <View style={styles.headerTopRow}>
-              <View style={styles.headerLeft}>
-                <Text style={styles.greeting}>Merhaba! 👋</Text>
-                <Text style={styles.headerDate}>
-                  {new Date().toLocaleDateString('tr-TR', { 
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'long' 
-                  })}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.profileButton}>
-                <MaterialCommunityIcons name="account-circle-outline" size={28} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Calorie Tracking Section */}
-            <View style={styles.calorieTrackingSection}>
-              <View style={styles.calorieStatsWithChart}>
-                {/* Mini Circular Chart */}
-                <View style={styles.miniChartContainer}>
-                  <CircularProgress
-                    size={80}
-                    strokeWidth={6}
-                    progress={calorieProgress}
-                    color="#ffffff"
-                    backgroundColor="rgba(255,255,255,0.3)"
-                  >
-                    <View style={styles.miniChartCenter}>
-                      <Text style={styles.miniChartText}>{Math.round(calorieProgress * 100)}%</Text>
-                    </View>
-                  </CircularProgress>
-                </View>
-                
-                {/* Calorie Info */}
-                <View style={styles.calorieStats}>
-                  <View style={styles.calorieMainInfo}>
-                    <Text style={styles.calorieConsumed}>{totalCalories}</Text>
-                    <Text style={styles.calorieUnit}>kalori tüketildi</Text>
-                  </View>
-                  <View style={styles.calorieTargetInfo}>
-                    <Text style={styles.calorieTarget}>/ {dailyGoal}</Text>
-                    <Text style={styles.calorieTargetLabel}>hedef</Text>
-                  </View>
-                </View>
-              </View>
-              
-              {/* Progress Bar */}
-              <View style={styles.progressBarContainer}>
-                <View style={styles.progressBarBackground}>
-                  <Animated.View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${Math.min(calorieProgress * 100, 100)}%`,
-                        backgroundColor: calorieProgress > 1 ? '#ef4444' : '#10b981'
-                      }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.progressPercentage}>
-                  {Math.round(calorieProgress * 100)}%
-                </Text>
-              </View>
-
-              {/* Quick Stats Row */}
-              <View style={styles.quickStatsRow}>
-                <View style={styles.quickStatItem}>
-                  <Text style={styles.quickStatValue}>{macros.protein.toFixed(0)}g</Text>
-                  <Text style={styles.quickStatLabel}>Protein</Text>
-                </View>
-                <View style={styles.quickStatItem}>
-                  <Text style={styles.quickStatValue}>{macros.carbs.toFixed(0)}g</Text>
-                  <Text style={styles.quickStatLabel}>Karb</Text>
-                </View>
-                <View style={styles.quickStatItem}>
-                  <Text style={styles.quickStatValue}>{macros.fat.toFixed(0)}g</Text>
-                  <Text style={styles.quickStatLabel}>Yağ</Text>
-                </View>
-                <View style={styles.quickStatItem}>
-                  <Text style={styles.quickStatValue}>{Math.max(0, dailyGoal - totalCalories)}</Text>
-                  <Text style={styles.quickStatLabel}>Kalan</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </SafeAreaView>
+        <Ionicons name={config.icon} size={14} color="white" />
+        <Text style={styles.badgeText}>{config.text}</Text>
       </LinearGradient>
     </View>
   );
+};
 
-  // 📊 ULTRA MODERN STATS DASHBOARD
-  const renderStatsCard = () => (
-    <Animated.View style={[styles.statsCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+// Modern Stat Card
+const ModernStatCard = ({ title, value, unit, icon, colors, percentage }) => {
+  return (
+    <View style={styles.modernStatCard}>
       <LinearGradient
-        colors={['#ffffff', '#f8fafc']}
-        style={styles.statsCardGradient}
+        colors={colors}
+        style={styles.statCardGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <View style={styles.statsContent}>
-          
-          {/* Enhanced Calorie Circle with Gradient */}
-          <View style={styles.calorieSection}>
-            <View style={styles.calorieCircleContainer}>
-              <LinearGradient
-                colors={calorieProgress > 0.8 ? ['#ef4444', '#dc2626'] : ['#3b82f6', '#1d4ed8']}
-                style={styles.calorieCircleBackground}
-              >
-                <CircularProgress
-                  size={160}
-                  strokeWidth={12}
-                  progress={calorieProgress}
-                  color="#ffffff"
-                  backgroundColor="rgba(255,255,255,0.3)"
-                >
-                  <View style={styles.calorieCenter}>
-                    <Text style={styles.calorieNumber}>{totalCalories}</Text>
-                    <Text style={styles.calorieUnit}>kcal</Text>
-                    <Text style={styles.calorieRemaining}>
-                      {Math.max(0, dailyGoal - totalCalories)} kalan
-                    </Text>
-                  </View>
-                </CircularProgress>
-              </LinearGradient>
-            </View>
-          </View>
-
-          {/* Professional Macro Cards */}
-          <View style={styles.macroCardsContainer}>
-            {[
-              { 
-                label: 'Protein', 
-                value: `${macros.protein.toFixed(1)}`, 
-                unit: 'g', 
-                gradientColors: ['#10b981', '#059669'],
-                icon: 'dumbbell',
-                percentage: Math.min((macros.protein / 150) * 100, 100)
-              },
-              { 
-                label: 'Karbonhidrat', 
-                value: `${macros.carbs.toFixed(1)}`, 
-                unit: 'g', 
-                gradientColors: ['#f59e0b', '#d97706'],
-                icon: 'grain',
-                percentage: Math.min((macros.carbs / 250) * 100, 100)
-              },
-              { 
-                label: 'Yağ', 
-                value: `${macros.fat.toFixed(1)}`, 
-                unit: 'g', 
-                gradientColors: ['#8b5cf6', '#7c3aed'],
-                icon: 'water-outline',
-                percentage: Math.min((macros.fat / 70) * 100, 100)
-              }
-            ].map((macro, index) => (
-              <TouchableOpacity 
-                key={macro.label} 
-                style={styles.macroCard}
-                activeOpacity={0.8}
-                onPress={() => Haptics?.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              >
-                <LinearGradient
-                  colors={macro.gradientColors}
-                  style={styles.macroCardGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  {/* Icon Container */}
-                  <View style={styles.macroIconContainer}>
-                    <View style={styles.macroIconBackground}>
-                      <MaterialCommunityIcons 
-                        name={macro.icon} 
-                        size={24} 
-                        color="#ffffff" 
-                      />
-                    </View>
-                  </View>
-                  
-                  {/* Content */}
-                  <View style={styles.macroCardContent}>
-                    <Text style={styles.macroCardLabel}>{macro.label}</Text>
-                    <View style={styles.macroValueContainer}>
-                      <Text style={styles.macroCardValue}>
-                        {macro.value}
-                      </Text>
-                      <Text style={styles.macroCardUnit}>{macro.unit}</Text>
-                    </View>
-                    
-                    {/* Mini Progress Bar */}
-                    <View style={styles.macroProgressContainer}>
-                      <View style={styles.macroProgressBackground}>
-                        <View 
-                          style={[
-                            styles.macroProgressFill, 
-                            { width: `${macro.percentage}%` }
-                          ]} 
-                        />
-                      </View>
-                    </View>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Enhanced Daily Insight */}
-          <View style={styles.insightContainer}>
-            <LinearGradient
-              colors={['#fef3c7', '#fbbf24']}
-              style={styles.insightGradient}
-            >
-              <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#d97706" />
-              <Text style={styles.insightText}>
-                {calorieProgress < 0.5 
-                  ? "Daha fazla beslenmeye odaklan! 💪" 
-                  : calorieProgress > 1.2 
-                  ? "Bugün hedefini aştın! 🎉"
-                  : "Harika gidiyorsun! Böyle devam 🚀"
-              }
-              </Text>
-            </LinearGradient>
+        <View style={styles.statCardIcon}>
+          <Ionicons name={icon} size={20} color="white" />
+        </View>
+        <View style={styles.statCardContent}>
+          <Text style={styles.statCardTitle}>{title}</Text>
+          <Text style={styles.statCardValue}>{value}</Text>
+          <Text style={styles.statCardUnit}>{unit}</Text>
+        </View>
+        <View style={styles.statCardProgress}>
+          <View style={styles.statProgressBar}>
+            <View style={[styles.statProgressFill, { width: `${percentage}%` }]} />
           </View>
         </View>
       </LinearGradient>
-    </Animated.View>
+    </View>
+  );
+};
+
+// Modern Water Tracker
+const ModernWaterTracker = ({ current, goal, onAdd, onRemove }) => {
+  const percentage = Math.min((current / goal) * 100, 100);
+  const glassCount = Math.floor(current / 250);
+  
+  return (
+    <View style={styles.modernWaterCard}>
+      <LinearGradient
+        colors={gradients.info}
+        style={styles.waterCardGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.waterHeader}>
+          <View style={styles.waterIconContainer}>
+            <Ionicons name="water" size={20} color="white" />
+          </View>
+          <Text style={styles.waterTitle}>Günlük Su</Text>
+        </View>
+        
+        <View style={styles.waterAmount}>
+          <Text style={styles.waterValue}>{current}ml</Text>
+          <Text style={styles.waterGoal}>/ {goal}ml</Text>
+        </View>
+        
+        <View style={styles.waterProgressContainer}>
+          <View style={styles.waterProgressBar}>
+            <View style={[styles.waterProgressFill, { width: `${percentage}%` }]} />
+          </View>
+          <Text style={styles.waterPercentage}>{Math.round(percentage)}%</Text>
+        </View>
+        
+        <View style={styles.waterActions}>
+          <TouchableOpacity onPress={onRemove} style={styles.waterActionButton}>
+            <Ionicons name="remove" size={18} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.waterGlasses}>{glassCount} 🥤</Text>
+          <TouchableOpacity onPress={onAdd} style={styles.waterActionButton}>
+            <Ionicons name="add" size={18} color="white" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    </View>
+  );
+};
+
+const DietScreen = ({ navigation, route }) => {
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const { user } = useAuthStore();
+  const {
+    getTodayData,
+    getSelectedDateData,
+    getDailyGoals,
+    syncDailyData,
+    addFoodToMeal,
+    removeFoodFromMeal,
+    editFoodInMeal,
+    addWater,
+    removeWater,
+    isLoading,
+    isSyncing,
+    error,
+    clearError,
+    initializeStore,
+  } = useDietStore();
+
+  const dailyData = selectedDate === new Date().toISOString().split('T')[0] 
+    ? getTodayData() 
+    : getSelectedDateData();
+  const goals = getDailyGoals();
+
+  useEffect(() => {
+    initializeStore();
+  }, []);
+
+  useEffect(() => {
+    if (selectedDate) {
+      syncDailyData(selectedDate);
+    }
+  }, [selectedDate]);
+
+  // Handle navigation parameters for adding food
+  useFocusEffect(
+    useCallback(() => {
+      const handleAddFoodData = async () => {
+        if (route.params?.addFoodData) {
+          const { mealType, foodData } = route.params.addFoodData;
+          
+          try {
+            await addFoodToMeal(selectedDate, mealType, foodData);
+            Alert.alert('Başarılı', 'Besin öğünüze eklendi!');
+          } catch (error) {
+            Alert.alert('Hata', 'Besin eklenirken bir hata oluştu.');
+            console.error('Error adding food from navigation:', error);
+          }
+          
+          // Clear the params to prevent re-adding
+          navigation.setParams({ addFoodData: null });
+        }
+      };
+
+      handleAddFoodData();
+    }, [route.params?.addFoodData, selectedDate, addFoodToMeal, navigation])
   );
 
-  // 🍽️ MODERN MEAL CARDS
-  const renderMealCard = (meal, index) => {
-    const mealData = meals[meal.key] || [];
-    const mealCalories = mealData.reduce((sum, food) => sum + food.calories, 0);
-    const progress = Math.min(mealCalories / meal.targetCalories, 1);
-
-    return (
-      <Animated.View 
-        key={meal.key}
-        style={[
-          styles.mealCard,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: Animated.add(slideAnim, new Animated.Value(index * 10)) }]
-          }
-        ]}
-      >
-        <Surface style={styles.mealCardSurface} elevation={3}>
-          <View style={styles.mealCardContent}>
-            
-            {/* Meal Header */}
-            <View style={styles.mealHeader}>
-              <View style={styles.mealInfo}>
-                <View style={[styles.mealEmojiContainer, { backgroundColor: meal.lightColor }]}>
-                  <Text style={styles.mealEmoji}>{meal.emoji}</Text>
-                </View>
-                <View style={styles.mealDetails}>
-                  <Text style={styles.mealName}>{meal.label}</Text>
-                  <Text style={styles.mealTime}>{meal.time}</Text>
-                </View>
-              </View>
-              
-              <TouchableOpacity 
-                style={[styles.addButton, { backgroundColor: meal.color }]}
-                onPress={() => openAddFoodModal(meal.key)}
-              >
-                <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Progress Section */}
-            <View style={styles.mealProgress}>
-              <View style={styles.progressInfo}>
-                <Text style={styles.progressText}>
-                  {mealCalories} / {meal.targetCalories} kcal
-                </Text>
-                <Text style={styles.progressPercent}>
-                  {Math.round(progress * 100)}%
-                </Text>
-              </View>
-              
-              <View style={styles.progressBarContainer}>
-                <View style={styles.progressBarTrack}>
-                  <Animated.View
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${progress * 100}%`,
-                        backgroundColor: meal.color
-                      }
-                    ]} 
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Foods List or Empty State */}
-            {mealData.length > 0 ? (
-              <View style={styles.foodsList}>
-                {mealData.slice(0, 3).map((food, foodIndex) => (
-                  <TouchableOpacity 
-                    key={foodIndex} 
-                    style={styles.foodItem}
-                    onPress={() => handleFoodItemPress(food, meal.key, foodIndex)}
-                  >
-                    <View style={styles.foodInfo}>
-                      <Text style={styles.foodName}>{food.name}</Text>
-                      <Text style={styles.foodAmount}>{food.amount || '100g'}</Text>
-                    </View>
-                    <Text style={styles.foodCalories}>{food.calories} kcal</Text>
-                  </TouchableOpacity>
-                ))}
-                
-                {mealData.length > 3 && (
-                  <Text style={styles.moreItems}>
-                    +{mealData.length - 3} daha fazla
-                  </Text>
-                )}
-              </View>
-            ) : (
-              <TouchableOpacity 
-                style={styles.emptyMealState}
-                onPress={() => openAddFoodModal(meal.key)}
-              >
-                <MaterialCommunityIcons 
-                  name="silverware-fork-knife" 
-                  size={24} 
-                  color={colors.textLight} 
-                />
-                <Text style={styles.emptyMealText}>İlk besinin için dokunun</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </Surface>
-      </Animated.View>
-    );
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await syncDailyData(selectedDate);
+    setRefreshing(false);
   };
 
-  // 🚀 MODERN QUICK ADD
-  const renderQuickAdd = () => (
-    <Animated.View style={[styles.quickAddContainer, { opacity: fadeAnim }]}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Hızlı Ekle</Text>
-        <Text style={styles.sectionSubtitle}>Popüler besinlerin</Text>
-      </View>
-      
-      <FlatList
-        data={QUICK_FOODS}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.quickFoodsList}
-        keyExtractor={(item, index) => `quick-${index}`}
-        renderItem={({ item, index }) => (
-          <Animated.View 
-            style={[
-              styles.quickFoodItem,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: Animated.add(slideAnim, new Animated.Value(index * 5)) }]
-              }
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.quickFoodButton}
-              onPress={() => {
-                Alert.alert(
-                  `${item.name} Ekle 🍽️`,
-                  `${item.name} (${item.calories} kcal) hangi öğününe eklensin?`,
-                  MEAL_TYPES.map(meal => ({
-                    text: `${meal.emoji} ${meal.label}`,
-                    onPress: () => handleQuickAdd(item, meal.key)
-                  })).concat([{ text: '❌ İptal', style: 'cancel' }])
-                );
-              }}
-            >
-              <Surface style={styles.quickFoodSurface} elevation={2}>
-                <View style={[styles.quickFoodIcon, { backgroundColor: item.color + '20' }]}>
-                  <MaterialCommunityIcons name={item.icon} size={28} color={item.color} />
-                </View>
-                <Text style={styles.quickFoodName}>{item.name}</Text>
-                <Text style={styles.quickFoodCalories}>{item.calories} kcal</Text>
-                <Text style={styles.quickFoodAmount}>{item.amount}</Text>
-              </Surface>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-      />
-    </Animated.View>
-  );
+  const handleDateChange = (direction) => {
+    const currentDate = new Date(selectedDate);
+    currentDate.setDate(currentDate.getDate() + direction);
+    const newDate = currentDate.toISOString().split('T')[0];
+    setSelectedDate(newDate);
+  };
 
-  // 💧 WATER TRACKER
-  const renderWaterTracker = () => (
-    <Animated.View style={[styles.waterTrackerContainer, { opacity: fadeAnim }]}>
-      <Surface style={styles.waterTrackerSurface} elevation={3}>
-        <View style={styles.waterTrackerContent}>
-          <View style={styles.waterHeader}>
-            <View style={styles.waterInfo}>
-              <Text style={styles.waterTitle}>💧 Su Takibi</Text>
-              <Text style={styles.waterSubtitle}>Günlük hidrasyon hedefin</Text>
-            </View>
-            <View style={styles.waterStats}>
-              <Text style={styles.waterCount}>{waterCount}</Text>
-              <Text style={styles.waterTarget}>/8 bardak</Text>
-            </View>
-          </View>
+  const handleAddFood = (mealType) => {
+    navigation.navigate('FoodSearch', { 
+      mealType, 
+      date: selectedDate,
+      onFoodSelected: (food) => {
+        addFoodToMeal(selectedDate, mealType, food);
+      }
+    });
+  };
 
-          <View style={styles.waterGlasses}>
-            {[...Array(8)].map((_, index) => (
-              <TouchableOpacity 
-                key={index}
-                style={[
-                  styles.waterGlass,
-                  index < waterCount && styles.waterGlassActive
-                ]}
-                onPress={() => setWaterCount(index < waterCount ? index : index + 1)}
-              >
-                <MaterialCommunityIcons 
-                  name={index < waterCount ? "cup-water" : "cup-outline"} 
-                  size={20} 
-                  color={index < waterCount ? colors.water : colors.textLight} 
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.waterProgressBar}>
-            <View style={styles.waterProgressTrack}>
-              <Animated.View 
-                style={[
-                  styles.waterProgressFill,
-                  { width: `${(waterCount / 8) * 100}%` }
-                ]} 
-              />
-            </View>
-            <Text style={styles.waterProgressText}>
-              {Math.round((waterCount / 8) * 100)}% tamamlandı
-            </Text>
-          </View>
-        </View>
-      </Surface>
-    </Animated.View>
-  );
-
-  // Food item actions
-  const handleFoodItemPress = (food, mealType, foodIndex) => {
+  const handleRemoveFood = (mealType, foodIndex) => {
     Alert.alert(
-      food.name,
-      `${food.amount || '100g'} - ${food.calories} kcal`,
+      'Besini Kaldır',
+      'Bu besini öğünden kaldırmak istediğinizden emin misiniz?',
       [
-        {
-          text: 'Düzenle',
-          onPress: () => editFoodItem(food, mealType, foodIndex)
-        },
-        {
-          text: 'Sil',
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Kaldır', 
           style: 'destructive',
-          onPress: () => deleteFoodItem(mealType, foodIndex)
-        },
-        {
-          text: 'İptal',
-          style: 'cancel'
+          onPress: () => removeFoodFromMeal(selectedDate, mealType, foodIndex)
         }
       ]
     );
   };
 
-  const editFoodItem = (food, mealType, foodIndex) => {
-    setEditingFood(food);
-    setEditingMealType(mealType);
-    setEditingFoodIndex(foodIndex);
-    setEditFoodModalVisible(true);
-  };
-
-  const deleteFoodItem = async (mealType, foodIndex) => {
+  const handleEditFood = async (mealType, foodIndex, updatedFood) => {
     try {
-      const { removeMeal } = useDietStore.getState();
-      await removeMeal(mealType, foodIndex);
-      
-      if (Haptics?.impactAsync) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+      await editFoodInMeal(selectedDate, mealType, foodIndex, updatedFood);
+      // Başarılı güncelleme mesajı gösterebilirsiniz
     } catch (error) {
-      console.error('Delete food error:', error);
-      Alert.alert('Hata', 'Besin silinirken bir sorun oluştu.');
+      Alert.alert('Hata', 'Besin güncellenirken bir hata oluştu.');
+      console.error('Error updating food:', error);
     }
   };
 
-  const handleFoodSelect = async (foodData, mealType) => {
-    try {
-      await addFood(mealType, foodData);
-      
-      Alert.alert(
-        '✅ Başarılı!', 
-        `${foodData.name} (${foodData.calories} kcal) ${MEAL_TYPES.find(m => m.key === mealType)?.label || 'öğününe'} eklendi.`,
-        [{ text: 'Tamam', style: 'default' }]
-      );
+  const handleWaterAdd = () => {
+    addWater(selectedDate, 250);
+  };
 
-      if (Haptics?.notificationAsync) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+  const handleWaterRemove = () => {
+    removeWater(selectedDate, 250);
+  };
 
-    } catch (error) {
-      console.error('Add food error:', error);
-      Alert.alert('❌ Hata', 'Besin eklenirken bir sorun oluştu.');
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (dateString === today.toISOString().split('T')[0]) {
+      return 'Bugün';
+    } else if (dateString === yesterday.toISOString().split('T')[0]) {
+      return 'Dün';
+    } else {
+      return date.toLocaleDateString('tr-TR', { 
+        day: 'numeric', 
+        month: 'long',
+        year: 'numeric'
+      });
     }
   };
 
-  const handleEditFoodSave = async (updatedFood, mealType) => {
-    try {
-      const { dailyMeals } = useDietStore.getState();
-      const updatedMeals = {
-        ...dailyMeals,
-        [mealType]: dailyMeals[mealType].map((food, index) => 
-          index === editingFoodIndex ? updatedFood : food
-        )
-      };
-      
-      const { saveDailyMeals, updateDailyProgress } = useDietStore.getState();
-      useDietStore.setState({ dailyMeals: updatedMeals });
-      await saveDailyMeals(updatedMeals);
-      updateDailyProgress();
-      
-      if (Haptics?.impactAsync) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-      
-      Alert.alert('✅ Güncellendi!', 'Besin miktarı başarıyla güncellendi.');
-    } catch (error) {
-      console.error('Edit food save error:', error);
-      Alert.alert('Hata', 'Besin güncellenirken bir sorun oluştu.');
-    }
-  };
+  const caloriePercentage = Math.min((dailyData.totalCalories / goals.targetCalories) * 100, 100);
+  const proteinPercentage = Math.min((dailyData.totalProtein / goals.targetProtein) * 100, 100);
+  const carbsPercentage = Math.min((dailyData.totalCarbs / goals.targetCarbs) * 100, 100);
+  const fatPercentage = Math.min((dailyData.totalFat / goals.targetFat) * 100, 100);
 
-  // Show loading state while initializing
-  if (!isInitialized) {
+  if (isLoading) {
     return (
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Yükleniyor...</Text>
-        </View>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={gradients.primary}
+          style={styles.loadingContainer}
+        >
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>Harika deneyiminiz hazırlanıyor...</Text>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      
-      {/* Header */}
-      {renderHeader()}
-      
-      {/* Main Content */}
-      <ScrollView 
+    <SafeAreaView style={styles.container}>
+      {/* Modern Header */}
+      <LinearGradient
+        colors={gradients.primary}
+        style={styles.modernHeader}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => handleDateChange(-1)} style={styles.headerButton}>
+            <Ionicons name="chevron-back" size={24} color="white" />
+          </TouchableOpacity>
+          
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerDate}>{formatDate(selectedDate)}</Text>
+            <Text style={styles.headerSubtitle}>🎯 Hedefine odaklan</Text>
+          </View>
+          
+          <TouchableOpacity onPress={() => handleDateChange(1)} style={styles.headerButton}>
+            <Ionicons name="chevron-forward" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={gradients.primary}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
-        {/* Quick Add */}
-        {renderQuickAdd()}
-
-        {/* Meals Section */}
-        <View style={styles.mealsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Günlük Öğünlerin</Text>
-            <Text style={styles.sectionSubtitle}>Beslenme planın</Text>
+        <View style={styles.content}>
+          {/* Hero Kalori Kartı */}
+          <View style={styles.heroCard}>
+            <LinearGradient
+              colors={['#ffffff', '#f8f9ff']}
+              style={styles.heroCardGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.heroHeader}>
+                <View>
+                  <Text style={styles.heroTitle}>Günlük Kalori</Text>
+                  <Text style={styles.heroSubtitle}>Enerjin nasıl? ⚡</Text>
+                </View>
+                <ModernStatusBadge percentage={caloriePercentage} />
+              </View>
+              
+              <View style={styles.heroContent}>
+                <View style={styles.heroCircle}>
+                  <ModernCircularProgress
+                    percentage={caloriePercentage}
+                    size={130}
+                    strokeWidth={8}
+                  />
+                  <View style={styles.heroCircleCenter}>
+                    <Text style={styles.heroCalorieValue}>{Math.round(dailyData.totalCalories)}</Text>
+                    <Text style={styles.heroCalorieUnit}>kcal</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.heroStats}>
+                  <View style={styles.heroStatItem}>
+                    <View style={styles.heroStatIcon}>
+                      <Ionicons name="flag" size={16} color={gradients.primary[0]} />
+                    </View>
+                    <View>
+                      <Text style={styles.heroStatLabel}>Hedef</Text>
+                      <Text style={styles.heroStatValue}>{Math.round(goals.targetCalories)}</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.heroStatItem}>
+                    <View style={styles.heroStatIcon}>
+                      <Ionicons name="gift" size={16} color={gradients.success[0]} />
+                    </View>
+                    <View>
+                      <Text style={styles.heroStatLabel}>Kalan</Text>
+                      <Text style={styles.heroStatValue}>
+                        {Math.max(0, Math.round(goals.targetCalories - dailyData.totalCalories))}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.heroStatItem}>
+                    <View style={styles.heroStatIcon}>
+                      <Ionicons name="trophy" size={16} color={gradients.warning[0]} />
+                    </View>
+                    <View>
+                      <Text style={styles.heroStatLabel}>İlerleme</Text>
+                      <Text style={styles.heroStatValue}>{Math.round(caloriePercentage)}%</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
-          {MEAL_TYPES.map((meal, index) => renderMealCard(meal, index))}
+
+          {/* Günlük Makro Özeti */}
+          <View style={styles.dailyMacroSection}>
+            <View style={styles.dailyMacroHeader}>
+              <Text style={styles.dailyMacroHeaderText}>Yağ</Text>
+              <Text style={styles.dailyMacroHeaderText}>Karb</Text>
+              <Text style={styles.dailyMacroHeaderText}>Prot</Text>
+              <Text style={styles.dailyMacroHeaderText}>TGD</Text>
+              <Text style={styles.dailyMacroHeaderText}>Kalori</Text>
+            </View>
+                         <View style={styles.dailyMacroValues}>
+               <Text style={styles.dailyMacroValue}>{Math.round(dailyData.totalFat * 100) / 100}</Text>
+               <Text style={styles.dailyMacroValue}>{Math.round(dailyData.totalCarbs * 100) / 100}</Text>
+               <Text style={styles.dailyMacroValue}>{Math.round(dailyData.totalProtein * 100) / 100}</Text>
+               <Text style={styles.dailyMacroValue}>%{Math.round((dailyData.totalCalories / 2000) * 100) || 0}</Text>
+               <Text style={styles.dailyMacroValue}>{Math.round(dailyData.totalCalories)}</Text>
+             </View>
+          </View>
+
+          {/* Meals Section */}
+          <View style={styles.mealsSection}>
+            <MealSection
+              title="Kahvaltı"
+              icon="sunny"
+              foods={dailyData.meals.breakfast}
+              onAddFood={() => handleAddFood('breakfast')}
+              onRemoveFood={(index) => handleRemoveFood('breakfast', index)}
+              onEditFood={(index, updatedFood) => handleEditFood('breakfast', index, updatedFood)}
+              showIcon={true}
+              totalCalories={dailyData.meals.breakfast.reduce((total, food) => {
+                const portion = food.portion || 1;
+                const servingSize = food.servingSize || 100;
+                const multiplier = (portion * servingSize) / 100;
+                return total + (food.calories || 0) * multiplier;
+              }, 0)}
+            />
+
+            <MealSection
+              title="Öğle Yemeği"
+              icon="partly-sunny"
+              foods={dailyData.meals.lunch}
+              onAddFood={() => handleAddFood('lunch')}
+              onRemoveFood={(index) => handleRemoveFood('lunch', index)}
+              onEditFood={(index, updatedFood) => handleEditFood('lunch', index, updatedFood)}
+              showIcon={false}
+              totalCalories={dailyData.meals.lunch.reduce((total, food) => {
+                const portion = food.portion || 1;
+                const servingSize = food.servingSize || 100;
+                const multiplier = (portion * servingSize) / 100;
+                return total + (food.calories || 0) * multiplier;
+              }, 0)}
+            />
+
+            <MealSection
+              title="Akşam Yemeği"
+              icon="moon"
+              foods={dailyData.meals.dinner}
+              onAddFood={() => handleAddFood('dinner')}
+              onRemoveFood={(index) => handleRemoveFood('dinner', index)}
+              onEditFood={(index, updatedFood) => handleEditFood('dinner', index, updatedFood)}
+              showIcon={false}
+              totalCalories={dailyData.meals.dinner.reduce((total, food) => {
+                const portion = food.portion || 1;
+                const servingSize = food.servingSize || 100;
+                const multiplier = (portion * servingSize) / 100;
+                return total + (food.calories || 0) * multiplier;
+              }, 0)}
+            />
+
+            <MealSection
+              title="Atıştırmalık"
+              icon="nutrition"
+              foods={dailyData.meals.snacks}
+              onAddFood={() => handleAddFood('snacks')}
+              onRemoveFood={(index) => handleRemoveFood('snacks', index)}
+              onEditFood={(index, updatedFood) => handleEditFood('snacks', index, updatedFood)}
+              showIcon={false}
+              totalCalories={dailyData.meals.snacks.reduce((total, food) => {
+                const portion = food.portion || 1;
+                const servingSize = food.servingSize || 100;
+                const multiplier = (portion * servingSize) / 100;
+                return total + (food.calories || 0) * multiplier;
+              }, 0)}
+            />
+          </View>
+
+          {/* Modern Water Tracker - En altta */}
+          <View style={styles.compactWaterCard}>
+            <LinearGradient
+              colors={gradients.info}
+              style={styles.compactWaterGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.compactWaterContent}>
+                <View style={styles.compactWaterIcon}>
+                  <Ionicons name="water" size={18} color="white" />
+                </View>
+                <Text style={styles.compactWaterTitle}>Su: {dailyData.waterIntake || 0}ml / 2500ml</Text>
+                <Text style={styles.compactWaterPercent}>
+                  {Math.round(Math.min(((dailyData.waterIntake || 0) / 2500) * 100, 100))}%
+                </Text>
+              </View>
+              <View style={styles.compactWaterActions}>
+                <TouchableOpacity onPress={handleWaterRemove} style={styles.compactWaterButton}>
+                  <Ionicons name="remove" size={18} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleWaterAdd} style={styles.compactWaterButton}>
+                  <Ionicons name="add" size={18} color="white" />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* Modern Action Buttons */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('NutritionGoals')}
+            >
+              <LinearGradient
+                colors={gradients.primary}
+                style={styles.actionButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.actionButtonIcon}>
+                  <Ionicons name="settings" size={24} color="white" />
+                </View>
+                <View style={styles.actionButtonContent}>
+                  <Text style={styles.actionButtonTitle}>Hedefleri Ayarla</Text>
+                  <Text style={styles.actionButtonSubtitle}>Kişisel hedefleriniz</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('Progress')}
+            >
+              <LinearGradient
+                colors={gradients.success}
+                style={styles.actionButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.actionButtonIcon}>
+                  <Ionicons name="trending-up" size={24} color="white" />
+                </View>
+                <View style={styles.actionButtonContent}>
+                  <Text style={styles.actionButtonTitle}>İlerleme</Text>
+                  <Text style={styles.actionButtonSubtitle}>Başarı hikayeniz</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Water Tracker */}
-        {renderWaterTracker()}
-
-        {/* Bottom Spacing */}
-        <View style={styles.bottomSpacing} />
-        
       </ScrollView>
-
-      {/* Enhanced Food Search Modal - REMOVED */}
-      {/* We now navigate to FoodSearchScreen instead */}
-
-      {/* Edit Food Modal */}
-      <EditFoodModal
-        visible={editFoodModalVisible}
-        onDismiss={() => {
-          setEditFoodModalVisible(false);
-          setEditingFood(null);
-          setEditingMealType(null);
-          setEditingFoodIndex(null);
-        }}
-        onSave={handleEditFoodSave}
-        foodItem={editingFood}
-        mealType={editingMealType}
-      />
-    </View>
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8f9ff',
   },
-  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
   },
-  
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  
-  // Header Styles
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0,
-  },
-  headerGradient: {
-    paddingBottom: 32,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  greeting: {
+    marginTop: 20,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: 'white',
     fontWeight: '600',
-    marginBottom: 4,
+  },
+  modernHeader: {
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerButton: {
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 15,
+  },
+  headerCenter: {
+    alignItems: 'center',
   },
   headerDate: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '400',
-    textTransform: 'capitalize',
-  },
-  profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calorieTrackingSection: {
-    gap: 16,
-  },
-  calorieStatsWithChart: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  miniChartContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniChartCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniChartText: {
-    fontSize: 14,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#ffffff',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    color: 'white',
   },
-  calorieStats: {
-    flex: 1,
-    gap: 4,
-  },
-  calorieMainInfo: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  calorieConsumed: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  calorieUnit: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
-  },
-  calorieTargetInfo: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  calorieTarget: {
-    fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
-  },
-  calorieTargetLabel: {
+  headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontWeight: '500',
+    color: 'white',
+    opacity: 0.9,
+    marginTop: 2,
   },
-  progressBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  progressBarBackground: {
-    flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  progressPercentage: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    minWidth: 40,
-    textAlign: 'right',
-  },
-  quickStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-  },
-  quickStatItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  quickStatValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  quickStatLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '500',
-  },
-
-  // Scroll Styles
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingTop: 20,
+  content: {
+    padding: 20,
   },
-
-  // Stats Card Styles
-  statsCard: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-  },
-  statsCardGradient: {
-    borderRadius: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 12,
-      },
-    }),
-  },
-  statsContent: {
-    padding: 24,
-  },
-  calorieSection: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  calorieCircleContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calorieCircleBackground: {
-    borderRadius: 80,
-    padding: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.2,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  calorieCenter: {
-    alignItems: 'center',
-  },
-  calorieNumber: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  calorieUnit: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: -4,
-    fontWeight: '500',
-  },
-  calorieRemaining: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  macroCardsContainer: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  macroCard: {
-    borderRadius: 16,
+  heroCard: {
+    marginBottom: 25,
+    borderRadius: 25,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    elevation: 8,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
-  macroCardGradient: {
-    padding: 16,
-    minHeight: 80,
+  heroCardGradient: {
+    padding: 25,
+  },
+  heroHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 25,
   },
-  macroIconContainer: {
-    marginRight: 16,
-  },
-  macroIconBackground: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  macroCardContent: {
-    flex: 1,
-  },
-  macroCardLabel: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  macroValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 8,
-  },
-  macroCardValue: {
-    fontSize: 20,
+  heroTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#2d3748',
   },
-  macroCardUnit: {
+  heroSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginLeft: 2,
+    color: '#718096',
+    marginTop: 2,
   },
-  macroProgressContainer: {
-    marginTop: 4,
-  },
-  macroProgressBackground: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  macroProgressFill: {
-    height: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 2,
-  },
-  macroLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  macroValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  insightContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  insightGradient: {
+  heroContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    gap: 12,
   },
-  insightText: {
-    fontSize: 14,
-    color: '#d97706',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-
-  // Progress Styles
-  progressBackground: {
-    backgroundColor: colors.background,
+  heroCircle: {
     position: 'relative',
+    marginRight: 30,
   },
-  progressForeground: {
+  modernCircularContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleTrack: {
     position: 'absolute',
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: 'transparent',
   },
-  progressContent: {
+  progressCircle: {
+    position: 'absolute',
+  },
+  progressInner: {
+    position: 'absolute',
+  },
+  progressOverlay: {
+    position: 'absolute',
+  },
+  heroCircleCenter: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-
-  // Section Styles
-  sectionHeader: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
+  heroCalorieValue: {
+    fontSize: 32,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#2d3748',
+    textAlign: 'center',
   },
-  sectionSubtitle: {
+  heroCalorieUnit: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#718096',
+    fontWeight: '500',
+    textAlign: 'center',
     marginTop: 2,
   },
-
-  // Quick Add Styles
-  quickAddContainer: {
-    marginBottom: 32,
+  heroStats: {
+    flex: 1,
   },
-  quickFoodsList: {
-    paddingHorizontal: 20,
+  heroStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
   },
-  quickFoodItem: {
+  heroStatIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 17,
+    backgroundColor: '#f7fafc',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  quickFoodButton: {
-    alignItems: 'center',
-  },
-  quickFoodSurface: {
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    padding: 16,
-    alignItems: 'center',
-    minWidth: 100,
-  },
-  quickFoodIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  quickFoodName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  quickFoodCalories: {
+  heroStatLabel: {
     fontSize: 12,
-    color: colors.calories,
+    color: '#a0aec0',
     fontWeight: '500',
   },
-  quickFoodAmount: {
-    fontSize: 11,
-    color: colors.textLight,
-  },
-
-  // Meal Card Styles
-  mealsSection: {
-    marginBottom: 32,
-  },
-  mealCard: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-  },
-  mealCardSurface: {
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-  },
-  mealCardContent: {
-    padding: 20,
-  },
-  mealHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  mealInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  mealEmojiContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  mealEmoji: {
-    fontSize: 20,
-  },
-  mealDetails: {
-    flex: 1,
-  },
-  mealName: {
-    fontSize: 18,
+  heroStatValue: {
+    fontSize: 16,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#2d3748',
   },
-  mealTime: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mealProgress: {
-    marginBottom: 16,
-  },
-  progressInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  progressText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  progressPercent: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: colors.background,
-    borderRadius: 4,
+  modernBadge: {
+    borderRadius: 15,
     overflow: 'hidden',
   },
-  progressBarTrack: {
+  badgeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+    marginLeft: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    gap: 12,
+  },
+  modernStatCard: {
+    flex: 1,
+    borderRadius: 18,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  statCardGradient: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  statCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statCardContent: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statCardTitle: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '500',
+    opacity: 0.9,
+  },
+  statCardValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  statCardUnit: {
+    fontSize: 10,
+    color: 'white',
+    opacity: 0.8,
+  },
+  statCardProgress: {
+    width: '100%',
+  },
+  statProgressBar: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  statProgressFill: {
+    height: '100%',
+    backgroundColor: 'white',
+    borderRadius: 2,
+  },
+  // Compact Water Tracker Styles
+  compactWaterCard: {
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#4facfe',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  compactWaterGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 18,
+  },
+  compactWaterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
+  compactWaterIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  foodsList: {
-    gap: 8,
+  compactWaterTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'white',
+    flex: 1,
   },
-  foodItem: {
+  compactWaterPercent: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'white',
+    opacity: 0.85,
+    marginRight: 12,
+  },
+  compactWaterActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  compactWaterButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Daily Macro Section Styles
+  dailyMacroSection: {
+    marginBottom: 10,
+    paddingHorizontal: 15,
+  },
+  dailyMacroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: colors.background,
-    borderRadius: 12,
   },
-  foodInfo: {
-    flex: 1,
-  },
-  foodName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  foodAmount: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  foodCalories: {
+  dailyMacroHeaderText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.calories,
-  },
-  moreItems: {
-    fontSize: 12,
-    color: colors.textLight,
+    color: '#718096',
+    flex: 1,
     textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 4,
   },
-  emptyMealState: {
+  dailyMacroValues: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.textLight + '30',
-    borderStyle: 'dashed',
+    paddingVertical: 8,
   },
-  emptyMealText: {
-    fontSize: 14,
-    color: colors.textLight,
-    marginTop: 8,
+  dailyMacroValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2d3748',
+    flex: 1,
+    textAlign: 'center',
   },
-
-  // Water Tracker Styles
-  waterTrackerContainer: {
-    marginHorizontal: 20,
-    marginBottom: 32,
+  mealsSection: {
+    marginBottom: 10,
   },
-  waterTrackerSurface: {
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+  actionButtons: {
+    gap: 15,
+    marginBottom: 20,
   },
-  waterTrackerContent: {
+  actionButton: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
   },
-  waterHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  actionButtonIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginRight: 15,
   },
-  waterInfo: {
+  actionButtonContent: {
     flex: 1,
   },
-  waterTitle: {
-    fontSize: 18,
+  actionButtonTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
-    color: colors.text,
+    color: 'white',
   },
-  waterSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
+  actionButtonSubtitle: {
+    fontSize: 12,
+    color: 'white',
+    opacity: 0.9,
     marginTop: 2,
   },
-  waterStats: {
-    alignItems: 'flex-end',
-  },
-  waterCount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.water,
-  },
-  waterTarget: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: -4,
-  },
-  waterGlasses: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  waterGlass: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  waterGlassActive: {
-    backgroundColor: colors.water + '20',
-  },
-  waterProgressBar: {
-    alignItems: 'center',
-  },
-  waterProgressTrack: {
-    height: 8,
-    backgroundColor: colors.background,
-    borderRadius: 4,
-    width: '100%',
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  waterProgressFill: {
-    height: '100%',
-    backgroundColor: colors.water,
-    borderRadius: 4,
-  },
-  waterProgressText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-
-  bottomSpacing: {
-    height: 100,
-  },
 });
+
+export default DietScreen;

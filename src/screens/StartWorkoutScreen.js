@@ -22,6 +22,8 @@ import LottieView from 'lottie-react-native';
 import LocalAnimationService from '../services/localAnimationService';
 import workoutStore from '../store/workoutStore';
 import WorkoutTheme from '../theme/workoutTheme';
+import BodyMapContainer from '../components/BodyMap/BodyMapContainer';
+import ProfessionalBodyMap from '../components/BodyMap/ProfessionalBodyMap';
 
 // FALLBACK THEME
 const FALLBACK_THEME = {
@@ -127,7 +129,13 @@ export default function StartWorkoutScreen({ navigation }) {
     loadAnimation();
   }, [currentExercise?.name]); // Sadece egzersiz adı değiştiğinde tetikle
 
-  // Kas grupları ve egzersizleri
+  // Body Map ile kas grubu seçimi
+  const handleBodyMapMuscleGroupPress = useCallback((muscleGroup) => {
+    setSelectedMuscleGroup(muscleGroup);
+    setShowExerciseModal(true);
+  }, []);
+
+  // Kas grupları ve egzersizleri - Body Map ile uyumlu
   const muscleGroups = [
     { 
       id: 'chest', 
@@ -335,26 +343,7 @@ export default function StartWorkoutScreen({ navigation }) {
     setSelectedExercises(selectedExercises.filter(ex => ex.id !== exerciseId));
   };
 
-  // Kas grubu kartı
-  const MuscleGroupCard = ({ group }) => {
-    const exerciseCount = exercisesByMuscleGroup[group.id]?.length || 0;
-    return (
-      <TouchableOpacity 
-        style={styles.muscleGroupCard}
-        onPress={() => handleMuscleGroupSelect(group)}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={[group.color, group.color + '90']}
-          style={styles.muscleGroupGradient}
-        >
-          <MaterialCommunityIcons name={group.icon} size={32} color="#FFFFFF" />
-          <Text style={styles.muscleGroupName}>{group.name}</Text>
-          <Text style={styles.muscleGroupCount}>{exerciseCount} egzersiz</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  };
+  // Kas grubu seçimi artık Body Map ile yapılıyor
 
   // Egzersiz listesi modal
   const ExerciseModal = () => (
@@ -722,13 +711,14 @@ export default function StartWorkoutScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Kas Grupları */}
+        {/* Anatomik Vücut Haritası */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Kas Grupları</Text>
-          <View style={styles.muscleGroupsGrid}>
-            {muscleGroups.map((group) => (
-              <MuscleGroupCard key={group.id} group={group} />
-            ))}
+          <Text style={styles.sectionSubtitle}>Anatomik vücut haritasından kas grubu seçin</Text>
+          <View style={styles.bodyMapContainer}>
+            <ProfessionalBodyMap
+              onMuscleSelect={handleBodyMapMuscleGroupPress}
+            />
           </View>
         </View>
 
@@ -843,34 +833,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginLeft: 12,
   },
-  muscleGroupsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#B0B0B0',
+    marginBottom: 20,
+    textAlign: 'center',
   },
-  muscleGroupCard: {
-    width: (screenWidth - 60) / 2,
-    marginBottom: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  muscleGroupGradient: {
-    padding: 20,
+  bodyMapContainer: {
     alignItems: 'center',
-    minHeight: 120,
     justifyContent: 'center',
+    marginVertical: 10,
   },
-  muscleGroupName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  muscleGroupCount: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    opacity: 0.8,
+  bodyMap: {
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   
   // Modal Styles

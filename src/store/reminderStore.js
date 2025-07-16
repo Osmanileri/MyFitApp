@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import sqliteService from '../services/SQLiteService';
+import { useDataOperations } from '../services/NotificationService';
 
 export const useReminderStore = create((set, get) => ({
   // Reminders state
@@ -15,31 +17,63 @@ export const useReminderStore = create((set, get) => ({
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
   
+  // Initialize store
+  initializeStore: async () => {
+    try {
+      set({ isLoading: true });
+      
+      // Initialize SQLite database
+      await sqliteService.initializeDatabase();
+      
+      // Load user's reminders
+      await get().loadReminders();
+      
+      set({ isLoading: false });
+    } catch (error) {
+      console.error('Error initializing reminder store:', error);
+      set({ error: error.message, isLoading: false });
+    }
+  },
+  
   // Add reminder
   addReminder: async (reminder) => {
     try {
+      const userStore = await import('./authStore');
+      const user = userStore.default.getState().user;
+      
+      if (!user) return { success: false, error: 'No user found' };
+
       set({ isLoading: true });
-      const { reminders } = get();
       
       const newReminder = {
-        id: Date.now().toString(),
-        ...reminder,
+        reminderId: `reminder_${Date.now()}`,
+        title: reminder.title,
+        description: reminder.description || '',
+        type: reminder.type || 'general',
+        frequency: reminder.frequency || 'daily',
+        time: reminder.time || '09:00',
+        isActive: reminder.isActive !== undefined ? reminder.isActive : true,
+        color: reminder.color || '#2196F3',
+        icon: reminder.icon || 'bell',
+        completedDates: reminder.completedDates || [],
+        lastCompleted: reminder.lastCompleted || null,
         createdAt: new Date().toISOString(),
-        isActive: true,
       };
       
-      const updatedReminders = [...reminders, newReminder];
+      await sqliteService.saveReminder(user.uid, newReminder);
       
-      set({ 
-        reminders: updatedReminders,
-        isLoading: false 
-      });
+      set(state => ({
+        reminders: [...state.reminders, newReminder],
+        isLoading: false
+      }));
       
-      await AsyncStorage.setItem('reminders', JSON.stringify(updatedReminders));
       get().updateActiveReminders();
       
+      return { success: true };
     } catch (error) {
-      set({ error: 'Hatırlatıcı eklenemedi', isLoading: false });
+      console.error('Error adding reminder:', error);
+      set({ error: error.message, isLoading: false });
+      return { success: false, error: error.message };
     }
   },
   
@@ -47,37 +81,42 @@ export const useReminderStore = create((set, get) => ({
   updateReminder: async (id, updates) => {
     try {
       set({ isLoading: true });
-      const { reminders } = get();
       
-      const updatedReminders = reminders.map(reminder => 
-        reminder.id === id ? { ...reminder, ...updates } : reminder
-      );
+      await sqliteService.updateReminder(id, updates);
       
-      set({ 
-        reminders: updatedReminders,
-        isLoading: false 
-      });
+      set(state => ({
+        reminders: state.reminders.map(reminder => 
+          reminder.reminderId === id ? { ...reminder, ...updates } : reminder
+        ),
+        isLoading: false
+      }));
       
-      await AsyncStorage.setItem('reminders', JSON.stringify(updatedReminders));
       get().updateActiveReminders();
       
+      return { success: true };
     } catch (error) {
-      set({ error: 'Hatırlatıcı güncellenemedi', isLoading: false });
+      console.error('Error updating reminder:', error);
+      set({ error: error.message, isLoading: false });
+      return { success: false, error: error.message };
     }
   },
   
   // Delete reminder
   deleteReminder: async (id) => {
     try {
-      const { reminders } = get();
-      const updatedReminders = reminders.filter(reminder => reminder.id !== id);
+      await sqliteService.deleteReminder(id);
       
-      set({ reminders: updatedReminders });
-      await AsyncStorage.setItem('reminders', JSON.stringify(updatedReminders));
+      set(state => ({
+        reminders: state.reminders.filter(reminder => reminder.reminderId !== id)
+      }));
+      
       get().updateActiveReminders();
       
+      return { success: true };
     } catch (error) {
-      set({ error: 'Hatırlatıcı silinemedi' });
+      console.error('Error deleting reminder:', error);
+      set({ error: error.message });
+      return { success: false, error: error.message };
     }
   },
   
@@ -85,16 +124,27 @@ export const useReminderStore = create((set, get) => ({
   toggleReminder: async (id) => {
     try {
       const { reminders } = get();
-      const updatedReminders = reminders.map(reminder => 
-        reminder.id === id ? { ...reminder, isActive: !reminder.isActive } : reminder
-      );
+      const reminder = reminders.find(r => r.reminderId === id);
       
-      set({ reminders: updatedReminders });
-      await AsyncStorage.setItem('reminders', JSON.stringify(updatedReminders));
+      if (!reminder) return { success: false, error: 'Reminder not found' };
+      
+      const newActiveStatus = !reminder.isActive;
+      
+      await sqliteService.updateReminder(id, { isActive: newActiveStatus });
+      
+      set(state => ({
+        reminders: state.reminders.map(reminder => 
+          reminder.reminderId === id ? { ...reminder, isActive: newActiveStatus } : reminder
+        )
+      }));
+      
       get().updateActiveReminders();
       
+      return { success: true };
     } catch (error) {
-      set({ error: 'Hatırlatıcı durumu değiştirilemedi' });
+      console.error('Error toggling reminder:', error);
+      set({ error: error.message });
+      return { success: false, error: error.message };
     }
   },
   
@@ -102,26 +152,39 @@ export const useReminderStore = create((set, get) => ({
   markAsCompleted: async (id) => {
     try {
       const { reminders } = get();
+      const reminder = reminders.find(r => r.reminderId === id);
+      
+      if (!reminder) return { success: false, error: 'Reminder not found' };
+      
       const today = new Date().toISOString().split('T')[0];
+      const completedDates = reminder.completedDates || [];
       
-      const updatedReminders = reminders.map(reminder => {
-        if (reminder.id === id) {
-          const completedDates = reminder.completedDates || [];
-          return {
-            ...reminder,
-            completedDates: [...completedDates, today],
-            lastCompleted: today
-          };
-        }
-        return reminder;
-      });
+      if (!completedDates.includes(today)) {
+        const updatedCompletedDates = [...completedDates, today];
+        
+        await sqliteService.updateReminder(id, {
+          completedDates: updatedCompletedDates,
+          lastCompleted: today
+        });
+        
+        set(state => ({
+          reminders: state.reminders.map(reminder => 
+            reminder.reminderId === id ? {
+              ...reminder,
+              completedDates: updatedCompletedDates,
+              lastCompleted: today
+            } : reminder
+          )
+        }));
+        
+        get().updateActiveReminders();
+      }
       
-      set({ reminders: updatedReminders });
-      await AsyncStorage.setItem('reminders', JSON.stringify(updatedReminders));
-      get().updateActiveReminders();
-      
+      return { success: true };
     } catch (error) {
-      set({ error: 'Hatırlatıcı işaretlenemedi' });
+      console.error('Error marking reminder as completed:', error);
+      set({ error: error.message });
+      return { success: false, error: error.message };
     }
   },
   
@@ -158,8 +221,8 @@ export const useReminderStore = create((set, get) => ({
   getReminderStats: () => {
     const { reminders } = get();
     const activeCount = reminders.filter(r => r.isActive).length;
+    const today = new Date().toISOString().split('T')[0];
     const completedToday = reminders.filter(r => {
-      const today = new Date().toISOString().split('T')[0];
       return r.completedDates && r.completedDates.includes(today);
     }).length;
     
@@ -174,10 +237,14 @@ export const useReminderStore = create((set, get) => ({
   // Load reminders from storage
   loadReminders: async () => {
     try {
+      const userStore = await import('./authStore');
+      const user = userStore.default.getState().user;
+      
+      if (!user) return { success: false, error: 'No user found' };
+
       set({ isLoading: true });
       
-      const remindersStr = await AsyncStorage.getItem('reminders');
-      const reminders = remindersStr ? JSON.parse(remindersStr) : [];
+      const reminders = await sqliteService.getReminders(user.uid);
       
       set({ 
         reminders,
@@ -186,8 +253,11 @@ export const useReminderStore = create((set, get) => ({
       
       get().updateActiveReminders();
       
+      return { success: true };
     } catch (error) {
-      set({ error: 'Hatırlatıcılar yüklenemedi', isLoading: false });
+      console.error('Error loading reminders:', error);
+      set({ error: error.message, isLoading: false });
+      return { success: false, error: error.message };
     }
   },
   
@@ -195,7 +265,6 @@ export const useReminderStore = create((set, get) => ({
   createDefaultReminders: async () => {
     const defaultReminders = [
       {
-        id: 'water-reminder',
         title: 'Su İç',
         description: 'Günde 8 bardak su içmeyi unutma',
         type: 'water',
@@ -206,7 +275,6 @@ export const useReminderStore = create((set, get) => ({
         color: '#2196F3'
       },
       {
-        id: 'workout-reminder',
         title: 'Antrenman Zamanı',
         description: 'Günlük antrenmanını yapmayı unutma',
         type: 'workout',
@@ -217,7 +285,6 @@ export const useReminderStore = create((set, get) => ({
         color: '#FF9800'
       },
       {
-        id: 'meal-reminder',
         title: 'Öğün Kaydı',
         description: 'Öğünlerini kaydetmeyi unutma',
         type: 'meal',
@@ -228,7 +295,6 @@ export const useReminderStore = create((set, get) => ({
         color: '#4CAF50'
       },
       {
-        id: 'weight-reminder',
         title: 'Kilo Ölçümü',
         description: 'Haftalık kilo ölçümünü yap',
         type: 'weight',
@@ -245,28 +311,65 @@ export const useReminderStore = create((set, get) => ({
       
       // Only add defaults if no reminders exist
       if (reminders.length === 0) {
-        const remindersWithTimestamp = defaultReminders.map(reminder => ({
-          ...reminder,
-          createdAt: new Date().toISOString(),
-          completedDates: []
-        }));
-        
-        set({ reminders: remindersWithTimestamp });
-        await AsyncStorage.setItem('reminders', JSON.stringify(remindersWithTimestamp));
-        get().updateActiveReminders();
+        for (const reminder of defaultReminders) {
+          await get().addReminder(reminder);
+        }
       }
+      
+      return { success: true };
     } catch (error) {
-      set({ error: 'Varsayılan hatırlatıcılar oluşturulamadı' });
+      console.error('Error creating default reminders:', error);
+      set({ error: error.message });
+      return { success: false, error: error.message };
     }
   },
-  
-  // Reset all reminders
-  resetReminders: async () => {
+
+  // Clear all reminders
+  clearAllReminders: async () => {
     try {
-      set({ reminders: [], activeReminders: [] });
-      await AsyncStorage.removeItem('reminders');
+      const userStore = await import('./authStore');
+      const user = userStore.default.getState().user;
+      
+      if (!user) return { success: false, error: 'No user found' };
+
+      // Clear from SQLite
+      await sqliteService.clearUserData(user.uid);
+      
+      // Clear local state
+      set({
+        reminders: [],
+        activeReminders: []
+      });
+      
+      return { success: true };
     } catch (error) {
-      set({ error: 'Hatırlatıcılar sıfırlanamadı' });
+      console.error('Error clearing reminders:', error);
+      set({ error: error.message });
+      return { success: false, error: error.message };
     }
   }
-})); 
+}));
+
+// Create wrapper functions with notifications
+export const useReminderStoreWithNotifications = () => {
+  const store = useReminderStore();
+  
+  // Import the hook inside the component
+  const { notifyCreate, notifyUpdate, notifyDelete } = useDataOperations();
+
+  return {
+    ...store,
+    
+    // Wrap reminder operations with notifications
+    addReminder: notifyCreate('reminder')(store.addReminder),
+    updateReminder: notifyUpdate('reminder')(store.updateReminder),
+    deleteReminder: notifyDelete('reminder')(store.deleteReminder),
+    toggleReminder: notifyUpdate('reminder')(store.toggleReminder),
+    markAsCompleted: notifyUpdate('reminder')(store.markAsCompleted),
+    
+    // Wrap clear data with notifications
+    clearAllReminders: notifyDelete('reminder')(store.clearAllReminders),
+  };
+};
+
+export default useReminderStore; 

@@ -2,91 +2,112 @@
 
 A comprehensive React Native diet tracking application with modern UI design, FatSecret API integration, and professional features similar to popular diet tracking apps.
 
+## 🔒 Security Notice
+
+This application has been configured with proper security measures. Before running the application:
+
+1. **Environment Variables**: Copy `.env.example` to `.env` and configure your actual API keys
+2. **Production Mode**: Set `NODE_ENV=production` for production deployments
+3. **Demo Credentials**: Demo users are disabled in production mode for security
+
 ## 🚀 Features
 
 ### 📱 App Structure & Navigation
-- **4 Main Tabs**: Diyet (Diet), Antrenman (Training), İlerleme (Progress), Profil (Profile)
-- **React Navigation 6** with custom bottom tab navigator
-- **Modern Purple Gradient Theme** with professional styling
-- **Safe Area Handling** for all device types
+
+* **4 Main Tabs**: Diyet (Diet), Antrenman (Training), İlerleme (Progress), Profil (Profile)
+* **React Navigation 6** with custom bottom tab navigator
+* **Modern Purple Gradient Theme** with professional styling
+* **Safe Area Handling** for all device types
 
 ### 🍽️ Diet Tracking (Main Focus)
-- **Daily Calorie & Macro Tracking**: Fat, Carbs, Protein, Calories with progress circles
-- **4 Meal Sections**: 
-  - Kahvaltı (Breakfast) ☀️
-  - Öğle Yemeği (Lunch) 🌞  
-  - Akşam Yemeği (Dinner) 🌙
-  - Atıştırmalık (Snacks) 🍎
-- **Real-time Progress Indicators**: Circular progress bars for each macro
-- **Weekly Progress View**: 7-day progress visualization
-- **Water Tracking**: Daily water intake monitoring
+
+* **Daily Calorie & Macro Tracking**: Fat, Carbs, Protein, Calories with progress circles
+* **4 Meal Sections**:  
+   * Kahvaltı (Breakfast) ☀️  
+   * Öğle Yemeği (Lunch) 🌞  
+   * Akşam Yemeği (Dinner) 🌙  
+   * Atıştırmalık (Snacks) 🍎
+* **Real-time Progress Indicators**: Circular progress bars for each macro
+* **Weekly Progress View**: 7-day progress visualization
+* **Water Tracking**: Daily water intake monitoring
 
 ### 🔍 Food Search & API Integration
-- **Comprehensive Turkish Food Database**: 50+ local Turkish foods with accurate nutrition data
-- **FatSecret API Integration**: Access to international food database (when configured)
-- **Smart Search**: Autocomplete with fuzzy matching
-- **Offline Support**: Local database works without internet
-- **Food Categories**: Organized by protein, grains, vegetables, fruits, etc.
+
+* **Comprehensive Turkish Food Database**: 50+ local Turkish foods with accurate nutrition data
+* **FatSecret API Integration**: Access to international food database (when configured)
+* **Smart Search**: Autocomplete with fuzzy matching
+* **Offline Support**: Local database works without internet
+* **Food Categories**: Organized by protein, grains, vegetables, fruits, etc.
 
 ### 👤 User Authentication & Profile
-- **Complete Auth System**: Login, register, forgot password
-- **Demo Account**: `demo@fitapp.com` / `demo123`
-- **Profile Management**: Personal information, preferences, goals
-- **Onboarding Flow**: Initial setup for new users
-- **Secure Storage**: Token-based authentication with AsyncStorage
+
+* **Complete Auth System**: Login, register, forgot password
+* **Demo Account**: Available only in development mode
+* **Profile Management**: Personal information, preferences, goals
+* **Onboarding Flow**: Initial setup for new users
+* **Secure Storage**: Token-based authentication with AsyncStorage
 
 ### 📊 Data Management & Persistence
-- **AsyncStorage Integration**: Local data persistence
-- **Zustand State Management**: Efficient state handling
-- **Daily/Weekly/Monthly Tracking**: Historical data storage
-- **Smart Caching**: Optimized food search results
-- **Data Export**: User data management
+
+* **AsyncStorage Integration**: Local data persistence
+* **Zustand State Management**: Efficient state handling
+* **Daily/Weekly/Monthly Tracking**: Historical data storage
+* **Smart Caching**: Optimized food search results
+* **Data Export**: User data management
 
 ### 🎨 Modern UI/UX
-- **Professional Design**: FatSecret-inspired interface
-- **Purple Gradient Theme**: Consistent color scheme
-- **Smooth Animations**: Lottie animations support [[memory:2499438]]
-- **Haptic Feedback**: Touch feedback on iOS/Android
-- **Loading States**: Proper loading indicators
-- **Error Handling**: User-friendly error messages
-- **Responsive Design**: Works on all screen sizes
+
+* **Professional Design**: FatSecret-inspired interface
+* **Purple Gradient Theme**: Consistent color scheme
+* **Smooth Animations**: Lottie animations support [[memory:2499438]]
+* **Haptic Feedback**: Touch feedback on iOS/Android
+* **Loading States**: Proper loading indicators
+* **Error Handling**: User-friendly error messages
+* **Responsive Design**: Works on all screen sizes
 
 ## 🛠️ Technical Stack
 
 ### Core Technologies
-- **React Native 0.79.5**
-- **Expo SDK 53**
-- **TypeScript Ready** (structure in place)
-- **React Navigation 6**
+
+* **React Native 0.79.5**
+* **Expo SDK 53**
+* **TypeScript Ready** (structure in place)
+* **React Navigation 6**
 
 ### State Management
-- **Zustand 5.0.6** for lightweight state management
-- **AsyncStorage** for data persistence
+
+* **Zustand 5.0.6** for lightweight state management
+* **AsyncStorage** for data persistence
 
 ### UI Components
-- **React Native Paper 5.14.5** for Material Design components
-- **Expo Linear Gradient** for gradient effects
-- **React Native SVG** for custom graphics
-- **Lottie React Native** for animations [[memory:2499438]]
+
+* **React Native Paper 5.14.5** for Material Design components
+* **Expo Linear Gradient** for gradient effects
+* **React Native SVG** for custom graphics
+* **Lottie React Native** for animations [[memory:2499438]]
 
 ### Charts & Visualization
-- **React Native Chart Kit 6.12.0** for progress charts
-- **React Native Circular Progress** for macro indicators
+
+* **React Native Chart Kit 6.12.0** for progress charts
+* **React Native Circular Progress** for macro indicators
 
 ### API & Networking
-- **Axios 1.10.0** for HTTP requests
-- **FatSecret API** integration (optional)
+
+* **Axios 1.10.0** for HTTP requests
+* **FatSecret API** integration (optional)
 
 ### Additional Features
-- **Expo Haptics** for tactile feedback
-- **Date-fns** for date manipulation
-- **React Native Safe Area Context** for safe areas
+
+* **Expo Haptics** for tactile feedback
+* **Date-fns** for date manipulation
+* **React Native Safe Area Context** for safe areas
 
 ## 📁 Project Structure
 
 ```
 FitApp/
 ├── App.js                          # Main application entry
+├── .env.example                    # Environment variables template
 ├── src/
 │   ├── components/                 # Reusable UI components
 │   │   ├── BackButton.js
@@ -118,37 +139,52 @@ FitApp/
 │   ├── lottie/                     # Lottie animation files
 │   └── images/
 └── package.json
+
 ```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- Expo CLI
-- iOS Simulator / Android Emulator or physical device
-- Expo Go app (for testing)
+
+* Node.js 18+
+* Expo CLI
+* iOS Simulator / Android Emulator or physical device
+* Expo Go app (for testing)
 
 ### Installation
 
 1. **Clone the repository**
+
 ```bash
-git clone <repository-url>
+git clone https://github.com/Osmanileri/MyFitApp.git
 cd FitApp
 ```
 
 2. **Install dependencies**
+
 ```bash
 npm install
 ```
 
-3. **Start the development server**
+3. **Configure environment variables**
+
+```bash
+# Copy the environment template
+cp .env.example .env
+
+# Edit .env file with your actual API keys
+```
+
+4. **Start the development server**
+
 ```bash
 npm start
 # or
 expo start
 ```
 
-4. **Run on device/simulator**
+5. **Run on device/simulator**
+
 ```bash
 # iOS
 npm run ios
@@ -162,31 +198,62 @@ npm run web
 
 ### Demo Account
 
-For testing purposes, use the demo account:
-- **Email**: `demo@fitapp.com`
-- **Password**: `demo123`
+For **development mode only**, demo accounts are available:
 
-Or click the "Demo Hesabı ile Giriş" button on the login screen.
+* **Email**: `demo@fitapp.com`
+* **Password**: `demo123`
+
+**Note**: Demo accounts are automatically disabled in production mode for security.
 
 ## 🔧 Configuration
+
+### Environment Variables (.env)
+
+Create a `.env` file from `.env.example` and configure the following:
+
+```env
+# FatSecret API Credentials (optional)
+FATSECRET_CLIENT_ID=your_client_id_here
+FATSECRET_CLIENT_SECRET=your_client_secret_here
+
+# Auth Service Secret Key
+AUTH_SECRET_KEY=your_secure_secret_key_here
+
+# Environment
+NODE_ENV=development
+```
 
 ### FatSecret API Setup (Optional)
 
 To enable the full food database with international foods:
 
-1. **Get API Credentials**
-   - Register at [FatSecret Platform API](https://platform.fatsecret.com/)
-   - Obtain your Client ID and Client Secret
+1. **Get API Credentials**  
+   * Register at [FatSecret Platform API](https://platform.fatsecret.com)
+   * Obtain your Client ID and Client Secret
 
-2. **Configure API**
-   ```javascript
-   // src/services/nutritionAPI.js
-   const FATSECRET_CLIENT_ID = 'your_client_id_here';
-   const FATSECRET_CLIENT_SECRET = 'your_client_secret_here';
-   ```
+2. **Configure API**  
+   * Add your credentials to the `.env` file
+   * The app will automatically detect if API credentials are configured
 
 3. **Test API Connection**
-   The app will automatically detect if API credentials are configured and fall back to the local Turkish food database if not.
+   * The app will fall back to the local Turkish food database if API is not configured
+
+### Production Deployment
+
+For production deployments:
+
+1. **Set environment variables**:
+   ```bash
+   NODE_ENV=production
+   ```
+
+2. **Configure secure API keys**:
+   * Use proper secret management (Azure Key Vault, AWS Secrets Manager, etc.)
+   * Never commit actual API keys to version control
+
+3. **Security checks**:
+   * Demo accounts are automatically disabled
+   * Environment variables are required for sensitive operations
 
 ### Theme Customization
 

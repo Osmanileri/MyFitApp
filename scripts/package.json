@@ -1,0 +1,31 @@
+{
+  "name": "fitapp-firebase-scripts",
+  "version": "1.0.0",
+  "description": "Firebase Admin SDK scripts for FitApp demo account management",
+  "main": "createDemoAccount.js",
+  "scripts": {
+    "create-demo": "node createDemoAccount.js",
+    "create-multiple": "node createDemoAccount.js --multiple",
+    "delete-demo": "node deleteDemoAccount.js",
+    "reset-demo": "node resetDemoAccount.js",
+    "verify-demo": "node verifyDemoAccount.js"
+  },
+  "keywords": [
+    "firebase",
+    "admin",
+    "demo",
+    "fitapp"
+  ],
+  "author": "FitApp Team",
+  "license": "MIT",
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+} 

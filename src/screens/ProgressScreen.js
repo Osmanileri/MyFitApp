@@ -21,8 +21,8 @@ import {
   StackedBarChart 
 } from 'react-native-chart-kit';
 import { CircularProgress } from 'react-native-circular-progress';
-import { useDietStore } from '../store/dietStore';
-import { useWorkoutStore } from '../store/workoutStore';
+import useDietStore from '../store/dietStore';
+import useWorkoutStore from '../store/workoutStore';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -155,10 +155,10 @@ export default function ProgressScreen({ navigation }) {
     }).length;
     
     // Ortalama kalori (örnek hesaplama)
-    const averageCalories = dietStore.getDailyCalories() || 1850;
+    const averageCalories = dietStore.getTodayData().totalCalories || 1850;
     
     // Su tüketimi
-    const waterIntake = dietStore.waterIntake || 0;
+    const waterIntake = dietStore.getTodayData().waterIntake || 0;
     
     return {
       weeklyWorkouts,
@@ -260,12 +260,17 @@ export default function ProgressScreen({ navigation }) {
   const calculateDietData = () => {
     // Geçmiş 7 günlük kalori verisi (örnek)
     const weeklyCalories = [
-      dietStore.getDailyCalories() || 1850,
+      dietStore.getTodayData().totalCalories || 1850,
       2100, 1950, 2200, 1800, 2050, 1900
     ];
     
     // Makro besin dağılımı
-    const macros = dietStore.getDailyMacros();
+    const todayData = dietStore.getTodayData();
+    const macros = {
+      protein: todayData.totalProtein || 0,
+      carbs: todayData.totalCarbs || 0,
+      fat: todayData.totalFat || 0
+    };
     const totalMacros = macros.protein + macros.carbs + macros.fat;
     
     const macroPercentages = totalMacros > 0 ? {
@@ -275,14 +280,16 @@ export default function ProgressScreen({ navigation }) {
     } : { protein: 30, carbs: 45, fat: 25 };
     
     // Su tüketimi
-    const waterProgress = dietStore.waterIntake / (dietStore.nutritionGoals.water || 2.5);
+    const currentWater = dietStore.getTodayData().waterIntake || 0;
+    const targetWater = dietStore.nutritionGoals.targetWater || 2.5;
+    const waterProgress = currentWater / targetWater;
     
     return {
       weeklyCalories,
       macroPercentages,
       waterProgress: Math.min(waterProgress * 100, 100),
-      currentWater: dietStore.waterIntake,
-      targetWater: dietStore.nutritionGoals.water || 2.5
+      currentWater,
+      targetWater
     };
   };
 
