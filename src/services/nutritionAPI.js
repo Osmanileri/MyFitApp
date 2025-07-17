@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { turkishFoodDatabase } from '../data/turkishFoodDatabase';
 
 // FatSecret API configuration - Using environment variables for security
-const FATSECRET_CLIENT_ID = process.env.FATSECRET_CLIENT_ID || 'your_client_id_here';
-const FATSECRET_CLIENT_SECRET = process.env.FATSECRET_CLIENT_SECRET || 'your_client_secret_here';
+const FATSECRET_CLIENT_ID = '11ba9e1279794e83a39628a8e1148b51';
+const FATSECRET_CLIENT_SECRET = '01cc831e50e24be6af5d84d5653542e4';
 const FATSECRET_BASE_URL = process.env.FATSECRET_BASE_URL || 'https://platform.fatsecret.com/rest/server.api';
 const FATSECRET_TOKEN_URL = process.env.FATSECRET_TOKEN_URL || 'https://oauth.fatsecret.com/connect/token';
 

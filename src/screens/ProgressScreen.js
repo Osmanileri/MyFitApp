@@ -258,18 +258,21 @@ export default function ProgressScreen({ navigation }) {
 
   // Diyet verilerini hesaplama fonksiyonları
   const calculateDietData = () => {
+    // Güvenli erişim: hydration sırasında undefined olabilir
+    const todayData = typeof dietStore.getTodayData === 'function' ? dietStore.getTodayData() : undefined;
+    const nutritionGoals = dietStore.nutritionGoals || { targetWater: 2.5 };
+
     // Geçmiş 7 günlük kalori verisi (örnek)
     const weeklyCalories = [
-      dietStore.getTodayData().totalCalories || 1850,
+      todayData?.totalCalories || 1850,
       2100, 1950, 2200, 1800, 2050, 1900
     ];
     
     // Makro besin dağılımı
-    const todayData = dietStore.getTodayData();
     const macros = {
-      protein: todayData.totalProtein || 0,
-      carbs: todayData.totalCarbs || 0,
-      fat: todayData.totalFat || 0
+      protein: todayData?.totalProtein || 0,
+      carbs: todayData?.totalCarbs || 0,
+      fat: todayData?.totalFat || 0
     };
     const totalMacros = macros.protein + macros.carbs + macros.fat;
     
@@ -280,8 +283,8 @@ export default function ProgressScreen({ navigation }) {
     } : { protein: 30, carbs: 45, fat: 25 };
     
     // Su tüketimi
-    const currentWater = dietStore.getTodayData().waterIntake || 0;
-    const targetWater = dietStore.nutritionGoals.targetWater || 2.5;
+    const currentWater = todayData?.waterIntake || 0;
+    const targetWater = nutritionGoals.targetWater || 2.5;
     const waterProgress = currentWater / targetWater;
     
     return {
@@ -295,7 +298,16 @@ export default function ProgressScreen({ navigation }) {
 
   // Diyet analizi görünümü
   const DietAnalysisView = () => {
-    const dietData = calculateDietData();
+    let dietData;
+    try {
+      dietData = calculateDietData();
+    } catch (error) {
+      return (
+        <View style={styles.contentContainer}>
+          <Text style={styles.errorText}>Diyet verisi yüklenemedi: {error.message}</Text>
+        </View>
+      );
+    }
     
     const chartConfig = {
       backgroundGradientFrom: WorkoutTheme.cardBackground,
