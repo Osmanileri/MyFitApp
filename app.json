@@ -27,6 +27,13 @@
     },
     "plugins": [
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "FATSECRET_CLIENT_ID": "${FATSECRET_CLIENT_ID}",
+      "FATSECRET_CLIENT_SECRET": "${FATSECRET_CLIENT_SECRET}",
+      "FATSECRET_BASE_URL": "https://platform.fatsecret.com/rest/server.api",
+      "FATSECRET_TOKEN_URL": "https://oauth.fatsecret.com/connect/token",
+      "FATSECRET_PROXY_URL": "http://10.0.2.2:3001"
+    }
   }
 }

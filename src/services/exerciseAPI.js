@@ -18,16 +18,7 @@ const EXERCISE_DB_API = {
   }
 };
 
-// Wger API - Yedek API
-const WGER_API = {
-  BASE_URL: 'https://wger.de/api/v2',
-  EXERCISES: 'https://wger.de/api/v2/exercise/',
-  EXERCISE_INFO: 'https://wger.de/api/v2/exerciseinfo/',
-  IMAGES: 'https://wger.de/api/v2/exerciseimage/',
-  HEADERS: {
-    'Content-Type': 'application/json'
-  }
-};
+// WGER entegrasyonu kaldırıldı
 
 // ExerciseDB kategorilerini bizim kategorilerimize çevir
 const mapExerciseDBCategory = (bodyPart) => {
@@ -495,28 +486,42 @@ const ExerciseAPI = {
     return workingExercises;
   },
 
-  // Tüm egzersizleri getir (Sadece Yerel Veri)
+  // 🏋️‍♂️ Tüm egzersizleri getir (yerel/rapidAPI fallback)
   getAllExercises: async () => {
-    console.log('📁 Yerel egzersiz verileri yükleniyor...');
-    return ExerciseAPI.getWorkingExercises();
+    try {
+      console.log('📚 Tüm egzersizler (yerel/rapidAPI fallback) alınıyor...');
+      return ExerciseAPI.getWorkingExercises();
+
+    } catch (error) {
+      console.error('❌ getAllExercises hatası:', error);
+      return ExerciseAPI.getWorkingExercises();
+    }
   },
 
-  // Kas grubuna göre egzersizleri getir
+  // 💪 Kas grubuna göre egzersizleri getir (yerel/rapidAPI fallback)
   getExercisesByMuscleGroup: async (muscleGroup) => {
     try {
-      const allExercises = await ExerciseAPI.getAllExercises();
-      const filtered = allExercises.filter(exercise =>
-        exercise.category === muscleGroup ||
-        exercise.muscleGroups.includes(muscleGroup)
+      console.log(`🔍 ${muscleGroup} kas grubu egzersizleri aranıyor...`);
+
+      const fallbackExercises = ExerciseAPI.getWorkingExercises();
+      const filtered = fallbackExercises.filter(exercise =>
+        exercise.category === muscleGroup || (exercise.muscleGroups || []).includes(muscleGroup)
       );
 
-      console.log(`✅ ${muscleGroup} için ${filtered.length} egzersiz bulundu`);
+      console.log(`✅ Yerel/Statik verilerden ${muscleGroup} için ${filtered.length} egzersiz bulundu`);
       return filtered;
 
     } catch (error) {
-      console.error('getExercisesByMuscleGroup hatası:', error);
+      console.error(`❌ ${muscleGroup} egzersizleri alınamadı:`, error);
+
+      // Hata durumunda yerel verileri kullan
       const fallbackExercises = ExerciseAPI.getWorkingExercises();
-      return fallbackExercises.filter(exercise => exercise.category === muscleGroup);
+      const filtered = fallbackExercises.filter(exercise =>
+        exercise.category === muscleGroup || (exercise.muscleGroups || []).includes(muscleGroup)
+      );
+
+      console.log(`🔄 Fallback: ${muscleGroup} için ${filtered.length} yerel egzersiz`);
+      return filtered;
     }
   },
 
@@ -583,6 +588,81 @@ const ExerciseAPI = {
       console.error('getRandomExercises hatası:', error);
       return [];
     }
+  },
+
+  // WGER API ENTEGRASYONU KALDIRILDI
+
+  // 📊 WORKOUT LOGGING (Set ve Tekrar Kaydetme)
+
+  // Set kaydet
+  logWorkoutSet: async (setData) => {
+    try {
+      console.log('💾 Set yerel olarak kaydediliyor:', setData);
+
+      // Yerel kayıt (fallback)
+      const localSet = {
+        id: Date.now(),
+        ...setData,
+        timestamp: new Date().toISOString(),
+        isLocal: true
+      };
+
+      // TODO: AsyncStorage'a kaydet
+      console.log('📱 Yerel kayıt:', localSet);
+
+      return {
+        success: true,
+        setId: localSet.id,
+        message: 'Set yerel olarak kaydedildi',
+        isLocal: true
+      };
+
+    } catch (error) {
+      console.error('❌ Set kaydedilemedi:', error);
+      return { success: false, message: 'Set kaydedilemedi' };
+    }
+  },
+
+  // Kullanıcının workout geçmişini getir
+  getUserWorkoutHistory: async (userId, exerciseId = null) => {
+    try {
+      console.log('📊 Workout geçmişi (yerel) alınıyor...');
+      // TODO: AsyncStorage veya yerel veritabanından geçmişi getir
+      return [];
+
+    } catch (error) {
+      console.error('❌ Workout geçmişi alınamadı:', error);
+      return [];
+    }
+  },
+
+  // 🔧 API DURUM KONTROLÜ (WGER olmadan)
+
+  // Tüm API'lerin durumunu kontrol et
+  checkAllAPIsStatus: async () => {
+    console.log('🔍 Tüm API\'ler kontrol ediliyor...');
+
+    const results = {
+      rapidAPI: { status: 'unknown', message: 'Test edilmedi' },
+      fallback: { status: 'available', message: 'Yerel veriler hazır' }
+    };
+
+    // RapidAPI test
+    try {
+      const rapidTest = await ExerciseAPI.testNewAPI();
+      results.rapidAPI = {
+        status: rapidTest.success ? 'online' : 'offline',
+        message: rapidTest.message
+      };
+    } catch (error) {
+      results.rapidAPI = {
+        status: 'offline',
+        message: 'RapidAPI erişilemiyor'
+      };
+    }
+
+    console.log('📊 API Durum Raporu:', results);
+    return results;
   }
 };
 

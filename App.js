@@ -227,6 +227,10 @@ function AppNavigator() {
         <Stack.Screen name="ExerciseLibrary" component={ExerciseLibraryScreen} />
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
         
+        {/* 🏆 NEW PROFESSIONAL EXERCISE SCREENS */}
+        <Stack.Screen name="ExerciseList" component={require('./src/screens/ProfessionalExerciseListScreen').default} />
+        <Stack.Screen name="ProExerciseDetail" component={require('./src/screens/ProfessionalExerciseDetailScreen').default} />
+        
         {/* Progress Screens */}
         <Stack.Screen name="ProgressDashboard" component={ProgressDashboardScreen} />
         <Stack.Screen name="AddWeight" component={AddWeightScreen} />

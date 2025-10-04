@@ -23,7 +23,7 @@ import { Colors } from '../theme/appTheme';
 
 const { width } = Dimensions.get('window');
 
-// Modern Gradient Renkler
+// Gradient Colors
 const gradients = {
   primary: ['#667eea', '#764ba2'],
   success: ['#4ade80', '#22c55e'],
@@ -68,7 +68,7 @@ const PulseView = ({ children, style }) => {
   );
 };
 
-// Modern Dairesel Progress Component
+// Circular Progress Component
 const ModernCircularProgress = ({ percentage, size = 140, strokeWidth = 12 }) => {
   const actualPercentage = Math.min(Math.max(percentage || 0, 0), 100);
   
@@ -120,27 +120,12 @@ const ModernCircularProgress = ({ percentage, size = 140, strokeWidth = 12 }) =>
   );
 };
 
-// Modern Status Badge
+// Status Badge
 const ModernStatusBadge = ({ status, percentage }) => {
   const getStatusConfig = () => {
-    if (percentage < 70) return { 
-      colors: gradients.warning, 
-      icon: 'trending-down', 
-      text: 'Düşük',
-      bgColor: '#fff3e0'
-    };
-    if (percentage > 120) return { 
-      colors: gradients.warning, 
-      icon: 'trending-up', 
-      text: 'Yüksek',
-      bgColor: '#ffebee'
-    };
-    return { 
-      colors: gradients.success, 
-      icon: 'checkmark-circle', 
-      text: 'Mükemmel',
-      bgColor: '#e8f5e8'
-    };
+    if (percentage < 70) return { colors: gradients.warning, icon: 'trending-down', text: 'Low', bgColor: '#fff3e0' };
+    if (percentage > 120) return { colors: gradients.warning, icon: 'trending-up', text: 'High', bgColor: '#ffebee' };
+    return { colors: gradients.success, icon: 'checkmark-circle', text: 'Great', bgColor: '#e8f5e8' };
   };
 
   const config = getStatusConfig();
@@ -188,7 +173,7 @@ const ModernStatCard = ({ title, value, unit, icon, colors, percentage }) => {
   );
 };
 
-// Modern Water Tracker
+// Water Tracker
 const ModernWaterTracker = ({ current, goal, onAdd, onRemove }) => {
   const percentage = Math.min((current / goal) * 100, 100);
   const glassCount = Math.floor(current / 250);
@@ -205,7 +190,7 @@ const ModernWaterTracker = ({ current, goal, onAdd, onRemove }) => {
           <View style={styles.waterIconContainer}>
             <Ionicons name="water" size={20} color="white" />
           </View>
-          <Text style={styles.waterTitle}>Günlük Su</Text>
+          <Text style={styles.waterTitle}>Daily Water</Text>
         </View>
         
         <View style={styles.waterAmount}>
@@ -280,9 +265,9 @@ const DietScreen = ({ navigation, route }) => {
           
           try {
             await addFoodToMeal(selectedDate, mealType, foodData);
-            Alert.alert('Başarılı', 'Besin öğünüze eklendi!');
+            Alert.alert('Success', 'Food added to your meal!');
           } catch (error) {
-            Alert.alert('Hata', 'Besin eklenirken bir hata oluştu.');
+            Alert.alert('Error', 'An error occurred while adding food.');
             console.error('Error adding food from navigation:', error);
           }
           
@@ -320,12 +305,12 @@ const DietScreen = ({ navigation, route }) => {
 
   const handleRemoveFood = (mealType, foodIndex) => {
     Alert.alert(
-      'Besini Kaldır',
-      'Bu besini öğünden kaldırmak istediğinizden emin misiniz?',
+      'Remove Food',
+      'Are you sure you want to remove this food from the meal?',
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Kaldır', 
+          text: 'Remove', 
           style: 'destructive',
           onPress: () => removeFoodFromMeal(selectedDate, mealType, foodIndex)
         }
@@ -338,7 +323,7 @@ const DietScreen = ({ navigation, route }) => {
       await editFoodInMeal(selectedDate, mealType, foodIndex, updatedFood);
       // Başarılı güncelleme mesajı gösterebilirsiniz
     } catch (error) {
-      Alert.alert('Hata', 'Besin güncellenirken bir hata oluştu.');
+      Alert.alert('Error', 'An error occurred while updating food.');
       console.error('Error updating food:', error);
     }
   };
@@ -358,11 +343,11 @@ const DietScreen = ({ navigation, route }) => {
     yesterday.setDate(yesterday.getDate() - 1);
     
     if (dateString === today.toISOString().split('T')[0]) {
-      return 'Bugün';
+      return 'Today';
     } else if (dateString === yesterday.toISOString().split('T')[0]) {
-      return 'Dün';
+      return 'Yesterday';
     } else {
-      return date.toLocaleDateString('tr-TR', { 
+      return date.toLocaleDateString('en-US', { 
         day: 'numeric', 
         month: 'long',
         year: 'numeric'
@@ -391,7 +376,7 @@ const DietScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Modern Header */}
+      {/* Header */}
       <LinearGradient
         colors={gradients.primary}
         style={styles.modernHeader}
@@ -405,7 +390,7 @@ const DietScreen = ({ navigation, route }) => {
           
           <View style={styles.headerCenter}>
             <Text style={styles.headerDate}>{formatDate(selectedDate)}</Text>
-            <Text style={styles.headerSubtitle}>🎯 Hedefine odaklan</Text>
+            <Text style={styles.headerSubtitle}>🎯 Focus on your goal</Text>
           </View>
           
           <TouchableOpacity onPress={() => handleDateChange(1)} style={styles.headerButton}>
@@ -426,7 +411,7 @@ const DietScreen = ({ navigation, route }) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          {/* Hero Kalori Kartı */}
+          {/* Hero Calories Card */}
           <View style={styles.heroCard}>
             <LinearGradient
               colors={['#ffffff', '#f8f9ff']}
@@ -436,8 +421,8 @@ const DietScreen = ({ navigation, route }) => {
             >
               <View style={styles.heroHeader}>
                 <View>
-                  <Text style={styles.heroTitle}>Günlük Kalori</Text>
-                  <Text style={styles.heroSubtitle}>Enerjin nasıl? ⚡</Text>
+                  <Text style={styles.heroTitle}>Daily Calories</Text>
+                  <Text style={styles.heroSubtitle}>How is your energy? ⚡</Text>
                 </View>
                 <ModernStatusBadge percentage={caloriePercentage} />
               </View>
@@ -461,7 +446,7 @@ const DietScreen = ({ navigation, route }) => {
                       <Ionicons name="flag" size={16} color={gradients.primary[0]} />
                     </View>
                     <View>
-                      <Text style={styles.heroStatLabel}>Hedef</Text>
+                      <Text style={styles.heroStatLabel}>Target</Text>
                       <Text style={styles.heroStatValue}>{Math.round(goals.targetCalories)}</Text>
                     </View>
                   </View>
@@ -471,7 +456,7 @@ const DietScreen = ({ navigation, route }) => {
                       <Ionicons name="gift" size={16} color={gradients.success[0]} />
                     </View>
                     <View>
-                      <Text style={styles.heroStatLabel}>Kalan</Text>
+                      <Text style={styles.heroStatLabel}>Remaining</Text>
                       <Text style={styles.heroStatValue}>
                         {Math.max(0, Math.round(goals.targetCalories - dailyData.totalCalories))}
                       </Text>
@@ -483,7 +468,7 @@ const DietScreen = ({ navigation, route }) => {
                       <Ionicons name="trophy" size={16} color={gradients.warning[0]} />
                     </View>
                     <View>
-                      <Text style={styles.heroStatLabel}>İlerleme</Text>
+                      <Text style={styles.heroStatLabel}>Progress</Text>
                       <Text style={styles.heroStatValue}>{Math.round(caloriePercentage)}%</Text>
                     </View>
                   </View>
@@ -492,14 +477,14 @@ const DietScreen = ({ navigation, route }) => {
             </LinearGradient>
           </View>
 
-          {/* Günlük Makro Özeti */}
+          {/* Daily Macro Summary */}
           <View style={styles.dailyMacroSection}>
             <View style={styles.dailyMacroHeader}>
-              <Text style={styles.dailyMacroHeaderText}>Yağ</Text>
-              <Text style={styles.dailyMacroHeaderText}>Karb</Text>
+              <Text style={styles.dailyMacroHeaderText}>Fat</Text>
+              <Text style={styles.dailyMacroHeaderText}>Carb</Text>
               <Text style={styles.dailyMacroHeaderText}>Prot</Text>
-              <Text style={styles.dailyMacroHeaderText}>TGD</Text>
-              <Text style={styles.dailyMacroHeaderText}>Kalori</Text>
+              <Text style={styles.dailyMacroHeaderText}>%DV</Text>
+              <Text style={styles.dailyMacroHeaderText}>Cal</Text>
             </View>
                          <View style={styles.dailyMacroValues}>
                <Text style={styles.dailyMacroValue}>{Math.round(dailyData.totalFat * 100) / 100}</Text>
@@ -513,7 +498,7 @@ const DietScreen = ({ navigation, route }) => {
           {/* Meals Section */}
           <View style={styles.mealsSection}>
             <MealSection
-              title="Kahvaltı"
+              title="Breakfast"
               icon="sunny"
               foods={dailyData.meals.breakfast}
               onAddFood={() => handleAddFood('breakfast')}
@@ -529,7 +514,7 @@ const DietScreen = ({ navigation, route }) => {
             />
 
             <MealSection
-              title="Öğle Yemeği"
+              title="Lunch"
               icon="partly-sunny"
               foods={dailyData.meals.lunch}
               onAddFood={() => handleAddFood('lunch')}
@@ -545,7 +530,7 @@ const DietScreen = ({ navigation, route }) => {
             />
 
             <MealSection
-              title="Akşam Yemeği"
+              title="Dinner"
               icon="moon"
               foods={dailyData.meals.dinner}
               onAddFood={() => handleAddFood('dinner')}
@@ -561,7 +546,7 @@ const DietScreen = ({ navigation, route }) => {
             />
 
             <MealSection
-              title="Atıştırmalık"
+              title="Snacks"
               icon="nutrition"
               foods={dailyData.meals.snacks}
               onAddFood={() => handleAddFood('snacks')}
@@ -577,7 +562,7 @@ const DietScreen = ({ navigation, route }) => {
             />
           </View>
 
-          {/* Modern Water Tracker - En altta */}
+          {/* Water Tracker */}
           <View style={styles.compactWaterCard}>
             <LinearGradient
               colors={gradients.info}
@@ -589,7 +574,7 @@ const DietScreen = ({ navigation, route }) => {
                 <View style={styles.compactWaterIcon}>
                   <Ionicons name="water" size={18} color="white" />
                 </View>
-                <Text style={styles.compactWaterTitle}>Su: {dailyData.waterIntake || 0}ml / 2500ml</Text>
+                <Text style={styles.compactWaterTitle}>Water: {dailyData.waterIntake || 0}ml / 2500ml</Text>
                 <Text style={styles.compactWaterPercent}>
                   {Math.round(Math.min(((dailyData.waterIntake || 0) / 2500) * 100, 100))}%
                 </Text>
@@ -605,7 +590,7 @@ const DietScreen = ({ navigation, route }) => {
             </LinearGradient>
           </View>
 
-          {/* Modern Action Buttons */}
+          {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.actionButton}
@@ -621,8 +606,8 @@ const DietScreen = ({ navigation, route }) => {
                   <Ionicons name="settings" size={24} color="white" />
                 </View>
                 <View style={styles.actionButtonContent}>
-                  <Text style={styles.actionButtonTitle}>Hedefleri Ayarla</Text>
-                  <Text style={styles.actionButtonSubtitle}>Kişisel hedefleriniz</Text>
+                  <Text style={styles.actionButtonTitle}>Set Goals</Text>
+                  <Text style={styles.actionButtonSubtitle}>Your personal goals</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="white" />
               </LinearGradient>
@@ -642,8 +627,8 @@ const DietScreen = ({ navigation, route }) => {
                   <Ionicons name="trending-up" size={24} color="white" />
                 </View>
                 <View style={styles.actionButtonContent}>
-                  <Text style={styles.actionButtonTitle}>İlerleme</Text>
-                  <Text style={styles.actionButtonSubtitle}>Başarı hikayeniz</Text>
+                  <Text style={styles.actionButtonTitle}>Progress</Text>
+                  <Text style={styles.actionButtonSubtitle}>Your success story</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="white" />
               </LinearGradient>

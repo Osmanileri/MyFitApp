@@ -24,12 +24,8 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDebounce } from '../hooks/useDebounce';
-import { 
-  TURKISH_FOOD_DATABASE, 
-  searchFoodsInDatabase, 
-  calculateNutrition,
-  POPULAR_FOODS 
-} from '../data/turkishFoodDatabase';
+import nutritionAPI from '../services/nutritionAPI';
+// Local Turkish database removed from Diet search. API-only results.
 import * as Haptics from 'expo-haptics';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -57,37 +53,21 @@ const colors = {
   headerGradient: ['#1a1a1a', '#0a0a0a']
 };
 
-// 🍽️ MEAL TYPE INFO
+// 🍽️ MEAL TYPE INFO (English)
 const MEAL_TYPES = {
-  breakfast: { emoji: '🌅', label: 'Kahvaltı', time: 'Salı, Tem 8' },
-  lunch: { emoji: '☀️', label: 'Öğle Yemeği', time: 'Salı, Tem 8' },
-  dinner: { emoji: '🌙', label: 'Akşam Yemeği', time: 'Salı, Tem 8' },
-  snacks: { emoji: '🍎', label: 'Atıştırmalık', time: 'Salı, Tem 8' }
+  breakfast: { emoji: '🌅', label: 'Breakfast', time: 'Tuesday, Jul 8' },
+  lunch: { emoji: '☀️', label: 'Lunch', time: 'Tuesday, Jul 8' },
+  dinner: { emoji: '🌙', label: 'Dinner', time: 'Tuesday, Jul 8' },
+  snacks: { emoji: '🍎', label: 'Snacks', time: 'Tuesday, Jul 8' }
 };
 
-// 📱 TAB OPTIONS
+// 📱 TAB OPTIONS (English)
 const SEARCH_TABS = [
-  { id: 'recipes', label: 'TARİFLER', icon: 'food' },
-  { id: 'foods', label: 'YEMEK', icon: 'silverware-fork-knife' },
-  { id: 'recent', label: 'EN SON YENELER', icon: 'history' }
+  { id: 'foods', label: 'FOODS', icon: 'silverware-fork-knife' }
 ];
 
-// 🥗 POPULAR SEARCH ITEMS
-const POPULAR_SEARCH_ITEMS = [
-  'çırpılmış yumurta',
-  '3 yumurta', 
-  'pirinç pilavı',
-  'pirinç pişmemiş',
-  'haşlanmış tavuk göğsü',
-  'tavuk göğüs eti',
-  'kepekli ekmek',
-  'beyaz pirinç (uzun-öğütülmüş)',
-  'tavuk göğüs eti (kızarmış, pişmiş)',
-  'proteinocean protein tozu',
-  'proteinocean protein',
-  'protein',
-  'yulaff'
-];
+// 🥗 EXAMPLE SUGGESTIONS (English)
+const POPULAR_SEARCH_ITEMS = [];
 
 const FoodSearchScreen = ({ navigation, route }) => {
   const { mealType = 'breakfast' } = route.params || {};
@@ -98,6 +78,8 @@ const FoodSearchScreen = ({ navigation, route }) => {
   const [selectedFood, setSelectedFood] = useState(null);
   const [customAmount, setCustomAmount] = useState('100');
   const [isLoading, setIsLoading] = useState(false);
+  const [apiResults, setApiResults] = useState([]);
+  const [apiLoading, setApiLoading] = useState(false);
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -109,34 +91,36 @@ const FoodSearchScreen = ({ navigation, route }) => {
   // Get meal info
   const mealInfo = MEAL_TYPES[mealType] || MEAL_TYPES.breakfast;
 
-  // Enhanced search results with Turkish Food Database
+  // Suggestions when not searching (English examples)
   const searchResults = useMemo(() => {
-    if (activeTab === 'recent') {
-      return POPULAR_SEARCH_ITEMS.slice(0, 20);
-    }
-    
-    if (debouncedSearch.trim() === '') {
-      // Return top foods from database when no search
-      const topFoods = TURKISH_FOOD_DATABASE.slice(0, 20).map(food => food.name);
-      return [...POPULAR_SEARCH_ITEMS.slice(0, 5), ...topFoods];
-    }
-    
-    // Search in Turkish Food Database
-    const dbResults = searchFoodsInDatabase(debouncedSearch);
-    
-    // Also search in popular items for backward compatibility
-    const popularResults = POPULAR_SEARCH_ITEMS.filter(item => 
-      item.toLowerCase().includes(debouncedSearch.toLowerCase())
-    );
-    
-    // Combine results, prioritizing database results
-    const combinedResults = [
-      ...dbResults.map(food => food.name),
-      ...popularResults.filter(item => !dbResults.some(food => food.name === item))
-    ];
-    
-    return combinedResults.slice(0, 25); // Show more results
+    return [];
   }, [debouncedSearch, activeTab]);
+
+  // Fetch FatSecret API results (English) when user types a query
+  useEffect(() => {
+    let isCancelled = false;
+    const run = async () => {
+      const q = debouncedSearch.trim();
+      if (q.length < 2) {
+        setApiResults([]);
+        setApiLoading(false);
+        return;
+      }
+      try {
+        setApiLoading(true);
+        const results = await nutritionAPI.searchFood(q);
+        if (!isCancelled) {
+          setApiResults(Array.isArray(results) ? results : []);
+        }
+      } catch (e) {
+        if (!isCancelled) setApiResults([]);
+      } finally {
+        if (!isCancelled) setApiLoading(false);
+      }
+    };
+    run();
+    return () => { isCancelled = true; };
+  }, [debouncedSearch]);
 
   // Animation effects
   useEffect(() => {
@@ -155,24 +139,54 @@ const FoodSearchScreen = ({ navigation, route }) => {
     ]).start();
   }, []);
 
-  // Handle food selection
-  const handleFoodSelect = async (foodName) => {
+  // Handle selection for suggestion items (strings)
+  const handleFoodSelectLocal = async (foodName) => {
     try {
       if (Haptics?.impactAsync) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-
-      // Navigate to food detail screen
-      navigation.navigate('FoodDetail', {
-        foodName: foodName,
-        mealType: mealType,
-        mealLabel: mealInfo.label
-      });
-
+      setSearchQuery(foodName);
     } catch (error) {
       console.error('Food selection error:', error);
-      Alert.alert('Hata', 'Besin seçilirken bir sorun oluştu.');
+      Alert.alert('Error', 'There was a problem selecting the food.');
     }
+  };
+
+  // Confirm selection for FatSecret API item
+  const confirmApiSelection = async () => {
+    if (!selectedFood) return;
+    const amountNumber = parseFloat(customAmount) || 100;
+
+    // Fetch precise serving details from FatSecret before adding
+    // Falls back to list data if details call fails
+    const buildPayload = (base) => ({
+      id: selectedFood.id,
+      name: selectedFood.name,
+      amount: amountNumber,
+      unit: 'g',
+      calories: Math.round((base.calories || 0) * (amountNumber / 100)),
+      protein: Math.round(((base.protein || 0) * (amountNumber / 100)) * 10) / 10,
+      carbs: Math.round(((base.carbs || 0) * (amountNumber / 100)) * 10) / 10,
+      fat: Math.round(((base.fat || 0) * (amountNumber / 100)) * 10) / 10,
+      fiber: Math.round(((base.fiber || 0) * (amountNumber / 100)) * 10) / 10,
+      sugar: 0,
+      sodium: 0,
+      source: 'fatsecret'
+    });
+
+    let payload;
+    try {
+      const detailed = await nutritionAPI.getFoodDetails(selectedFood.id, 'fatsecret');
+      payload = buildPayload(detailed || selectedFood);
+    } catch {
+      payload = buildPayload(selectedFood);
+    }
+
+    const onFoodSelected = route.params?.onFoodSelected;
+    if (typeof onFoodSelected === 'function') {
+      onFoodSelected(payload);
+    }
+    navigation.goBack();
   };
 
   // Handle camera action
@@ -297,36 +311,61 @@ const FoodSearchScreen = ({ navigation, route }) => {
     </LinearGradient>
   );
 
-  // Render food item
-  const renderFoodItem = ({ item: foodName, index }) => (
-    <Animated.View
-      style={[
-        styles.foodItemContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ 
-            translateY: Animated.add(slideAnim, new Animated.Value(index * 2))
-          }]
-        }
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.foodItem}
-        onPress={() => handleFoodSelect(foodName)}
-        activeOpacity={0.7}
+  // Render food item (supports string suggestions and API result objects)
+  const renderFoodItem = ({ item, index }) => {
+    const isStringItem = typeof item === 'string';
+    const title = isStringItem ? item : item.name;
+    const subtitle = isStringItem ? '' : `Calories: ${Math.round(item.calories || 0)} • P ${item.protein || 0}g • C ${item.carbs || 0}g • F ${item.fat || 0}g`;
+    const onPress = () => {
+      if (isStringItem) {
+        handleFoodSelectLocal(item);
+      } else {
+        setSelectedFood(item);
+      }
+    };
+
+    return (
+      <Animated.View
+        style={[
+          styles.foodItemContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ 
+              translateY: Animated.add(slideAnim, new Animated.Value(index * 2))
+            }]
+          }
+        ]}
       >
-        <View style={styles.foodItemContent}>
-          <Text style={styles.foodName}>{foodName}</Text>
-          <MaterialCommunityIcons 
-            name="arrow-up-right" 
-            size={20} 
-            color={colors.textTertiary} 
-          />
-        </View>
-        <View style={styles.foodItemBorder} />
-      </TouchableOpacity>
-    </Animated.View>
-  );
+        <TouchableOpacity
+          style={styles.foodItem}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          <View style={styles.foodItemContent}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.foodName}>{title}</Text>
+              {!isStringItem && (
+                <Text style={styles.foodSubtitle}>{subtitle}</Text>
+              )}
+            </View>
+            {!isStringItem && (
+              <Chip mode="outlined" textStyle={{ color: colors.textSecondary }} style={{ borderColor: colors.border }}>
+                FatSecret
+              </Chip>
+            )}
+            {isStringItem && (
+              <MaterialCommunityIcons 
+                name="arrow-up-right" 
+                size={20} 
+                color={colors.textTertiary} 
+              />
+            )}
+          </View>
+          <View style={styles.foodItemBorder} />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   // Render bottom action bar
   const renderBottomActions = () => (
@@ -387,10 +426,10 @@ const FoodSearchScreen = ({ navigation, route }) => {
         color={colors.textTertiary}
       />
       <Text style={styles.emptyStateText}>
-        {searchQuery ? 'Arama sonucu bulunamadı' : 'Popüler yemekleri keşfedin'}
+        {searchQuery ? 'No results found' : 'Explore popular foods'}
       </Text>
       <Text style={styles.emptyStateSubtext}>
-        {searchQuery ? 'Farklı anahtar kelimeler deneyin' : 'Arama yapın veya kamera kullanın'}
+        {searchQuery ? 'Try different keywords' : 'Search or use camera'}
       </Text>
     </Animated.View>
   );
@@ -409,7 +448,7 @@ const FoodSearchScreen = ({ navigation, route }) => {
       {/* Content */}
       <View style={styles.content}>
         <FlatList
-          data={searchResults}
+          data={debouncedSearch.trim().length >= 2 ? apiResults : searchResults}
           keyExtractor={(item, index) => `${item}-${index}`}
           renderItem={renderFoodItem}
           showsVerticalScrollIndicator={false}
@@ -419,10 +458,43 @@ const FoodSearchScreen = ({ navigation, route }) => {
           maxToRenderPerBatch={10}
           windowSize={10}
         />
+        {apiLoading && (
+          <View style={{ padding: 16, alignItems: 'center' }}>
+            <ActivityIndicator />
+          </View>
+        )}
       </View>
 
       {/* Bottom Actions */}
       {renderBottomActions()}
+
+      {/* Selection Panel for FatSecret item */}
+      {selectedFood && (
+        <View style={styles.selectionPanel}>
+          <View style={styles.selectionHeader}>
+            <Text style={styles.selectionTitle}>{selectedFood.name}</Text>
+            <Text style={styles.selectionBrand}>FatSecret • {selectedFood.portion || '100g'}</Text>
+          </View>
+
+          <View style={styles.portionContainer}>
+            <Text style={styles.portionLabel}>Miktar</Text>
+            <View style={styles.portionInput}>
+              <TextInput
+                style={styles.portionTextInput}
+                value={customAmount}
+                onChangeText={setCustomAmount}
+                keyboardType="numeric"
+                underlineColor="transparent"
+              />
+              <Text style={styles.portionUnit}>g</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.confirmButton} onPress={confirmApiSelection}>
+            <Text style={styles.confirmButtonText}>Ekle</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -572,6 +644,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
+  foodSubtitle: {
+    marginTop: 6,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   foodItemBorder: {
     height: 1,
     backgroundColor: colors.border,
@@ -626,6 +703,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  // Selection panel styles
+  selectionPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    padding: 16,
+  },
+  selectionHeader: {
+    marginBottom: 12,
+  },
+  selectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  selectionBrand: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  portionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  portionLabel: {
+    fontSize: 14,
+    color: colors.text,
+    marginRight: 12,
+  },
+  portionInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  portionTextInput: {
+    flex: 0,
+    minWidth: 70,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: 'transparent',
+    textAlign: 'center',
+    marginRight: 8,
+  },
+  portionUnit: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  confirmButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
 
