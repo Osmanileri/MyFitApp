@@ -1,9 +1,11 @@
 # Authentication Screens Documentation
 
 ## Overview
-This document describes the new authentication screens that have been created for the Firebase-based authentication system.
+
+This document describes the new authentication screens that have been created for the local AuthService-based authentication system.
 
 ## Screen Locations
+
 All authentication screens are now organized in the `src/screens/auth/` directory:
 
 - `src/screens/auth/SignUpScreen.js` - Comprehensive user registration
@@ -12,7 +14,9 @@ All authentication screens are now organized in the `src/screens/auth/` director
 ## SignUpScreen Features
 
 ### User Registration Fields
+
 - **Basic Information**
+
   - First Name (required)
   - Last Name (required)
   - Email (required, validated)
@@ -20,6 +24,7 @@ All authentication screens are now organized in the `src/screens/auth/` director
   - Confirm Password (required, must match password)
 
 - **Physical Information**
+
   - Age (optional, 13-120 range)
   - Gender (optional, Male/Female picker)
   - Height (optional, 100-250 cm range)
@@ -38,6 +43,7 @@ All authentication screens are now organized in the `src/screens/auth/` director
     - Gain Weight
 
 ### Validation Features
+
 - Real-time form validation
 - Email format validation
 - Password strength requirements
@@ -46,6 +52,7 @@ All authentication screens are now organized in the `src/screens/auth/` director
 - Visual error indicators (red borders)
 
 ### User Experience
+
 - Responsive design with KeyboardAvoidingView
 - ScrollView for longer forms
 - Loading states during registration
@@ -55,12 +62,14 @@ All authentication screens are now organized in the `src/screens/auth/` director
 ## ForgotPasswordScreen Features
 
 ### Enhanced UI
+
 - Back button with arrow icon
 - Lock icon for visual context
 - Gradient background matching app theme
 - Professional typography
 
 ### Functionality
+
 - Email validation
 - Firebase password reset integration
 - Visual feedback for sent emails
@@ -68,36 +77,36 @@ All authentication screens are now organized in the `src/screens/auth/` director
 - Error handling
 
 ### User Experience
+
 - Auto-focus on email input
 - Real-time validation feedback
 - Success confirmation with instructions
 - Disabled state after email sent
 - Clear navigation options
 
-## Integration with Firebase
+## Integration with AuthService
 
 ### SignUpScreen Integration
-- Uses Firebase Auth `createUserWithEmailAndPassword`
-- Creates user profile in Firestore
-- Stores additional user information:
-  - Physical stats (age, gender, height, weight)
-  - Fitness preferences (activity level, goal)
-  - Display name
-  - Timestamps
+
+- Uses local `AuthService.register`
+- Persists session via `AsyncStorage`
+- Stores additional user information locally (SQLite via stores)
 
 ### ForgotPasswordScreen Integration
-- Uses Firebase Auth `sendPasswordResetEmail`
-- Proper error handling for various Firebase errors
-- Success feedback with instructions
+
+- Uses local `AuthService.resetPassword`
+- Provides success feedback and error handling without external services
 
 ## Navigation Structure
 
 ### App.js Updates
+
 - Added new screens to navigation stack
 - Proper screen imports from auth directory
 - Maintains existing navigation flow
 
 ### Navigation Flow
+
 1. **Splash Screen** → Login/Register options
 2. **Login Screen** → Links to SignUp and ForgotPassword
 3. **SignUp Screen** → Registration → Success → Login
@@ -106,6 +115,7 @@ All authentication screens are now organized in the `src/screens/auth/` director
 ## Theme Integration
 
 ### Colors Used
+
 - Primary gradient background
 - White input fields
 - Error color for validation
@@ -113,6 +123,7 @@ All authentication screens are now organized in the `src/screens/auth/` director
 - Proper text contrast
 
 ### Typography
+
 - Consistent font sizes
 - Proper text hierarchy
 - Readable placeholder text
@@ -121,6 +132,7 @@ All authentication screens are now organized in the `src/screens/auth/` director
 ## Form Validation
 
 ### SignUpScreen Validation
+
 ```javascript
 // Email validation
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -142,6 +154,7 @@ if (weight && (isNaN(weight) || weight < 30 || weight > 300)) {
 ```
 
 ### ForgotPasswordScreen Validation
+
 - Email format validation
 - Required field validation
 - Clear error messages
@@ -149,12 +162,14 @@ if (weight && (isNaN(weight) || weight < 30 || weight > 300)) {
 ## Error Handling
 
 ### SignUpScreen Errors
+
 - Form validation errors
 - Firebase authentication errors
 - Network errors
 - User-friendly error messages in Turkish
 
 ### ForgotPasswordScreen Errors
+
 - Email validation errors
 - Firebase reset errors
 - Network connectivity issues
@@ -163,35 +178,38 @@ if (weight && (isNaN(weight) || weight < 30 || weight > 300)) {
 ## Dependencies Required
 
 ### Packages
+
 - `@react-native-picker/picker` - For dropdown selections
 - `@expo/vector-icons` - For icons
 - `expo-linear-gradient` - For gradient backgrounds
-- Firebase packages (already installed)
 
 ### Usage
+
 ```javascript
-import { Picker } from '@react-native-picker/picker';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Picker } from "@react-native-picker/picker";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 ```
 
 ## Testing Checklist
 
 ### SignUpScreen Testing
+
 - [ ] All required fields validation
 - [ ] Email format validation
 - [ ] Password confirmation matching
 - [ ] Numeric field ranges
 - [ ] Picker selections
-- [ ] Firebase registration
-- [ ] Firestore profile creation
+- [ ] Local registration (AuthService)
+- [ ] Local profile persistence
 - [ ] Error handling
 - [ ] Loading states
 - [ ] Navigation links
 
 ### ForgotPasswordScreen Testing
+
 - [ ] Email validation
-- [ ] Firebase reset email
+- [ ] Local reset flow (AuthService)
 - [ ] Success feedback
 - [ ] Error handling
 - [ ] Resend functionality
@@ -201,12 +219,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 ## Best Practices Implemented
 
 ### Code Organization
+
 - Separate validation functions
 - Clean component structure
 - Proper state management
 - Error boundary protection
 
 ### User Experience
+
 - Immediate feedback
 - Clear error messages
 - Logical form flow
@@ -214,14 +234,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 - Consistent styling
 
 ### Security
+
 - Client-side validation
-- Firebase security rules
 - Proper error handling
 - No sensitive data exposure
 
 ## Future Enhancements
 
 ### Potential Improvements
+
 - Social login integration
 - Profile picture upload
 - More detailed onboarding flow
@@ -230,6 +251,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 - Internationalization
 
 ### Maintenance
+
 - Regular dependency updates
 - Error monitoring
 - Performance optimization
@@ -238,15 +260,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 ## Troubleshooting
 
 ### Common Issues
+
 1. **Picker not displaying**: Check platform-specific styling
-2. **Firebase errors**: Verify configuration
-3. **Navigation issues**: Check screen names in App.js
-4. **Validation errors**: Review validation logic
+2. **Navigation issues**: Check screen names in App.js
+3. **Validation errors**: Review validation logic
 
 ### Solutions
-- Check Firebase console for authentication errors
-- Verify Firestore security rules
+
 - Test on both iOS and Android
 - Check network connectivity
 
-This documentation provides a comprehensive guide for understanding and maintaining the authentication screens in the fitness app. 
+This documentation provides a comprehensive guide for understanding and maintaining the authentication screens in the fitness app.

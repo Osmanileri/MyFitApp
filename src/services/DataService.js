@@ -1,15 +1,14 @@
-import firestore from '@react-native-firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 
 class DataService {
   constructor() {
     this.syncQueue = [];
     this.isSyncing = false;
     this.listeners = [];
-    
+
     // Network durumunu dinle
-    NetInfo.addEventListener(state => {
+    NetInfo.addEventListener((state) => {
       if (state.isConnected && this.syncQueue.length > 0) {
         this.processSyncQueue();
       }
@@ -26,16 +25,16 @@ class DataService {
   async saveDailyNutrition(userId, date, nutritionData) {
     const dateStr = this.formatDate(date);
     const docId = `${userId}_${dateStr}`;
-    
+
     const data = {
       userId,
       date: dateStr,
-      timestamp: firestore.FieldValue.serverTimestamp(),
+      timestamp: new Date().toISOString(),
       meals: nutritionData.meals || {
         breakfast: [],
         lunch: [],
         dinner: [],
-        snack: []
+        snack: [],
       },
       totals: nutritionData.totals || {
         calories: 0,
@@ -44,28 +43,19 @@ class DataService {
         fat: 0,
         fiber: 0,
         sugar: 0,
-        sodium: 0
+        sodium: 0,
       },
       water: nutritionData.water || 0,
       targetCalories: nutritionData.targetCalories || 2000,
-      notes: nutritionData.notes || ''
+      notes: nutritionData.notes || "",
     };
 
     try {
-      // Online ise Firebase'e kaydet
-      if (await this.isOnline()) {
-        await firestore().collection('daily_nutrition').doc(docId).set(data);
-      } else {
-        // Offline ise sync kuyruğuna ekle
-        this.addToSyncQueue('daily_nutrition', docId, data);
-      }
-      
-      // Her durumda local cache'e kaydet
+      // Local cache'e kaydet
       await AsyncStorage.setItem(`nutrition_${docId}`, JSON.stringify(data));
-      
       return { success: true, data };
     } catch (error) {
-      console.error('Beslenme kaydetme hatası:', error);
+      console.error("Beslenme kaydetme hatası:", error);
       throw error;
     }
   }
@@ -74,7 +64,7 @@ class DataService {
   async saveMeal(userId, date, mealType, mealData) {
     const dateStr = this.formatDate(date);
     const nutritionDoc = await this.getDailyNutrition(userId, dateStr);
-    
+
     if (!nutritionDoc) {
       // Yeni gün oluştur
       return this.saveDailyNutrition(userId, date, {
@@ -83,16 +73,16 @@ class DataService {
           lunch: [],
           dinner: [],
           snack: [],
-          [mealType]: mealData
+          [mealType]: mealData,
         },
-        totals: this.calculateTotals({ [mealType]: mealData })
+        totals: this.calculateTotals({ [mealType]: mealData }),
       });
     }
 
     // Mevcut güne öğün ekle
     const updatedMeals = {
       ...nutritionDoc.meals,
-      [mealType]: mealData
+      [mealType]: mealData,
     };
 
     const updatedTotals = this.calculateTotals(updatedMeals);
@@ -100,7 +90,7 @@ class DataService {
     return this.saveDailyNutrition(userId, date, {
       ...nutritionDoc,
       meals: updatedMeals,
-      totals: updatedTotals
+      totals: updatedTotals,
     });
   }
 
@@ -108,13 +98,16 @@ class DataService {
   async addFoodToMeal(userId, date, mealType, food) {
     const dateStr = this.formatDate(date);
     const nutritionDoc = await this.getDailyNutrition(userId, dateStr);
-    
+
     const currentMeal = nutritionDoc?.meals?.[mealType] || [];
-    const updatedMeal = [...currentMeal, {
-      ...food,
-      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      addedAt: new Date().toISOString()
-    }];
+    const updatedMeal = [
+      ...currentMeal,
+      {
+        ...food,
+        id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        addedAt: new Date().toISOString(),
+      },
+    ];
 
     return this.saveMeal(userId, date, mealType, updatedMeal);
   }
@@ -122,49 +115,16 @@ class DataService {
   // Günlük beslenme verisi getir
   async getDailyNutrition(userId, dateStr) {
     const docId = `${userId}_${dateStr}`;
-    
+
     try {
       // Önce local cache kontrol et
       const cached = await AsyncStorage.getItem(`nutrition_${docId}`);
       if (cached) {
-        const data = JSON.parse(cached);
-        
-        // Online ise güncel veriyi kontrol et
-        if (await this.isOnline()) {
-          try {
-            const docRef = firestore().collection('daily_nutrition').doc(docId);
-            const docSnap = await docRef.get();
-            
-            if (docSnap.exists) {
-              const serverData = docSnap.data();
-              // Local'i güncelle
-              await AsyncStorage.setItem(`nutrition_${docId}`, JSON.stringify(serverData));
-              return serverData;
-            }
-          } catch (error) {
-            console.warn('Server sync failed, using cached data:', error);
-          }
-        }
-        
-        return data;
+        return JSON.parse(cached);
       }
-
-      // Cache'de yoksa ve online ise Firebase'den al
-      if (await this.isOnline()) {
-        const docRef = firestore().collection('daily_nutrition').doc(docId);
-        const docSnap = await docRef.get();
-        
-        if (docSnap.exists) {
-          const data = docSnap.data();
-          // Cache'e kaydet
-          await AsyncStorage.setItem(`nutrition_${docId}`, JSON.stringify(data));
-          return data;
-        }
-      }
-      
       return null;
     } catch (error) {
-      console.error('Beslenme verisi alma hatası:', error);
+      console.error("Beslenme verisi alma hatası:", error);
       return null;
     }
   }
@@ -173,45 +133,20 @@ class DataService {
   async getNutritionRange(userId, startDate, endDate) {
     const startStr = this.formatDate(startDate);
     const endStr = this.formatDate(endDate);
-    
+
     try {
-      if (await this.isOnline()) {
-        const querySnapshot = await firestore()
-          .collection('daily_nutrition')
-          .where('userId', '==', userId)
-          .where('date', '>=', startStr)
-          .where('date', '<=', endStr)
-          .orderBy('date', 'desc')
-          .get();
-        
-        const data = [];
-        querySnapshot.forEach((doc) => {
-          data.push(doc.data());
-        });
-        
-        // Cache'e kaydet
-        for (const item of data) {
-          await AsyncStorage.setItem(
-            `nutrition_${item.userId}_${item.date}`, 
-            JSON.stringify(item)
-          );
-        }
-        
-        return data;
-      } else {
-        // Offline - local cache'den al
-        const keys = await AsyncStorage.getAllKeys();
-        const nutritionKeys = keys.filter(key => 
+      // Local cache'den al
+      const keys = await AsyncStorage.getAllKeys();
+      const nutritionKeys = keys.filter(
+        (key) =>
           key.startsWith(`nutrition_${userId}_`) &&
           key >= `nutrition_${userId}_${startStr}` &&
           key <= `nutrition_${userId}_${endStr}`
-        );
-        
-        const data = await AsyncStorage.multiGet(nutritionKeys);
-        return data.map(([_, value]) => JSON.parse(value));
-      }
+      );
+      const data = await AsyncStorage.multiGet(nutritionKeys);
+      return data.map(([_, value]) => JSON.parse(value));
     } catch (error) {
-      console.error('Tarih aralığı verisi alma hatası:', error);
+      console.error("Tarih aralığı verisi alma hatası:", error);
       return [];
     }
   }
@@ -219,32 +154,25 @@ class DataService {
   // Antrenman verisi kaydet
   async saveWorkout(userId, workoutData) {
     const docId = `${userId}_${Date.now()}`;
-    
+
     const data = {
       id: docId,
       userId,
       date: this.formatDate(new Date()),
-      timestamp: firestore.FieldValue.serverTimestamp(),
+      timestamp: new Date().toISOString(),
       name: workoutData.name,
       duration: workoutData.duration,
       exercises: workoutData.exercises || [],
       caloriesBurned: workoutData.caloriesBurned || 0,
-      notes: workoutData.notes || '',
-      completed: workoutData.completed || false
+      notes: workoutData.notes || "",
+      completed: workoutData.completed || false,
     };
 
     try {
-      if (await this.isOnline()) {
-        await firestore().collection('workouts').doc(docId).set(data);
-      } else {
-        this.addToSyncQueue('workouts', docId, data);
-      }
-      
       await AsyncStorage.setItem(`workout_${docId}`, JSON.stringify(data));
-      
       return { success: true, data };
     } catch (error) {
-      console.error('Antrenman kaydetme hatası:', error);
+      console.error("Antrenman kaydetme hatası:", error);
       throw error;
     }
   }
@@ -253,7 +181,7 @@ class DataService {
   async saveUserGoals(userId, goals) {
     const data = {
       userId,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: new Date().toISOString(),
       weightGoal: goals.weightGoal,
       targetWeight: goals.targetWeight,
       targetDate: goals.targetDate,
@@ -263,21 +191,14 @@ class DataService {
       carbGoal: goals.carbGoal,
       fatGoal: goals.fatGoal,
       waterGoal: goals.waterGoal || 2500, // ml
-      workoutGoal: goals.workoutGoal || 3 // haftalık
+      workoutGoal: goals.workoutGoal || 3, // haftalık
     };
 
     try {
-      if (await this.isOnline()) {
-        await firestore().collection('user_goals').doc(userId).set(data);
-      } else {
-        this.addToSyncQueue('user_goals', userId, data);
-      }
-      
       await AsyncStorage.setItem(`goals_${userId}`, JSON.stringify(data));
-      
       return { success: true, data };
     } catch (error) {
-      console.error('Hedef kaydetme hatası:', error);
+      console.error("Hedef kaydetme hatası:", error);
       throw error;
     }
   }
@@ -285,12 +206,12 @@ class DataService {
   // İlerleme verisi (kilo, ölçümler)
   async saveProgress(userId, progressData) {
     const docId = `${userId}_${Date.now()}`;
-    
+
     const data = {
       id: docId,
       userId,
       date: this.formatDate(new Date()),
-      timestamp: firestore.FieldValue.serverTimestamp(),
+      timestamp: new Date().toISOString(),
       weight: progressData.weight,
       bodyFat: progressData.bodyFat,
       measurements: progressData.measurements || {
@@ -298,24 +219,17 @@ class DataService {
         waist: null,
         hips: null,
         arms: null,
-        thighs: null
+        thighs: null,
       },
       photos: progressData.photos || [],
-      notes: progressData.notes || ''
+      notes: progressData.notes || "",
     };
 
     try {
-      if (await this.isOnline()) {
-        await firestore().collection('progress').doc(docId).set(data);
-      } else {
-        this.addToSyncQueue('progress', docId, data);
-      }
-      
       await AsyncStorage.setItem(`progress_${docId}`, JSON.stringify(data));
-      
       return { success: true, data };
     } catch (error) {
-      console.error('İlerleme kaydetme hatası:', error);
+      console.error("İlerleme kaydetme hatası:", error);
       throw error;
     }
   }
@@ -326,53 +240,33 @@ class DataService {
       collection,
       docId,
       data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-    
+
     // Queue'yu local'e kaydet
-    AsyncStorage.setItem('sync_queue', JSON.stringify(this.syncQueue));
+    AsyncStorage.setItem("sync_queue", JSON.stringify(this.syncQueue));
   }
 
   async processSyncQueue() {
-    if (this.isSyncing || !(await this.isOnline())) return;
-    
-    this.isSyncing = true;
-    
-    try {
-      const queue = [...this.syncQueue];
-      
-      for (const item of queue) {
-        try {
-          await firestore().collection(item.collection).doc(item.docId).set(item.data);
-          
-          // Başarılı - kuyruktan çıkar
-          this.syncQueue = this.syncQueue.filter(q => q !== item);
-        } catch (error) {
-          console.error('Sync hatası:', error);
-        }
-      }
-      
-      // Güncel kuyruğu kaydet
-      await AsyncStorage.setItem('sync_queue', JSON.stringify(this.syncQueue));
-    } finally {
-      this.isSyncing = false;
-    }
+    // Firebase kaldırıldığı için, sync kuyruğunu sadece temiz tut
+    await AsyncStorage.setItem("sync_queue", JSON.stringify(this.syncQueue));
+    this.isSyncing = false;
   }
 
   // Su tüketimi güncelle
   async updateWaterIntake(userId, date, waterAmount) {
     const dateStr = this.formatDate(date);
     const nutritionDoc = await this.getDailyNutrition(userId, dateStr);
-    
+
     if (!nutritionDoc) {
       return this.saveDailyNutrition(userId, date, {
-        water: waterAmount
+        water: waterAmount,
       });
     }
 
     return this.saveDailyNutrition(userId, date, {
       ...nutritionDoc,
-      water: waterAmount
+      water: waterAmount,
     });
   }
 
@@ -382,42 +276,11 @@ class DataService {
       // Önce local cache kontrol et
       const cached = await AsyncStorage.getItem(`goals_${userId}`);
       if (cached) {
-        const data = JSON.parse(cached);
-        
-        // Online ise güncel veriyi kontrol et
-        if (await this.isOnline()) {
-          try {
-            const docRef = firestore().collection('user_goals').doc(userId);
-            const docSnap = await docRef.get();
-            
-            if (docSnap.exists) {
-              const serverData = docSnap.data();
-              await AsyncStorage.setItem(`goals_${userId}`, JSON.stringify(serverData));
-              return serverData;
-            }
-          } catch (error) {
-            console.warn('Goals sync failed, using cached data:', error);
-          }
-        }
-        
-        return data;
+        return JSON.parse(cached);
       }
-
-      // Cache'de yoksa ve online ise Firebase'den al
-      if (await this.isOnline()) {
-        const docRef = firestore().collection('user_goals').doc(userId);
-        const docSnap = await docRef.get();
-        
-        if (docSnap.exists) {
-          const data = docSnap.data();
-          await AsyncStorage.setItem(`goals_${userId}`, JSON.stringify(data));
-          return data;
-        }
-      }
-      
       return null;
     } catch (error) {
-      console.error('Hedef alma hatası:', error);
+      console.error("Hedef alma hatası:", error);
       return null;
     }
   }
@@ -425,32 +288,18 @@ class DataService {
   // Antrenman geçmişi getir
   async getWorkoutHistory(userId, limit = 20) {
     try {
-      if (await this.isOnline()) {
-        const querySnapshot = await firestore()
-          .collection('workouts')
-          .where('userId', '==', userId)
-          .orderBy('timestamp', 'desc')
-          .limit(limit)
-          .get();
-        
-        const data = [];
-        querySnapshot.forEach((doc) => {
-          data.push(doc.data());
-        });
-        
-        return data;
-      } else {
-        // Offline - local cache'den al
-        const keys = await AsyncStorage.getAllKeys();
-        const workoutKeys = keys.filter(key => key.startsWith(`workout_${userId}_`));
-        
-        const data = await AsyncStorage.multiGet(workoutKeys);
-        return data.map(([_, value]) => JSON.parse(value))
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-          .slice(0, limit);
-      }
+      // Offline - local cache'den al
+      const keys = await AsyncStorage.getAllKeys();
+      const workoutKeys = keys.filter((key) =>
+        key.startsWith(`workout_${userId}_`)
+      );
+      const data = await AsyncStorage.multiGet(workoutKeys);
+      return data
+        .map(([_, value]) => JSON.parse(value))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit);
     } catch (error) {
-      console.error('Antrenman geçmişi alma hatası:', error);
+      console.error("Antrenman geçmişi alma hatası:", error);
       return [];
     }
   }
@@ -458,7 +307,10 @@ class DataService {
   // Yardımcı fonksiyonlar
   formatDate(date) {
     const d = new Date(date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   calculateTotals(meals) {
@@ -469,12 +321,12 @@ class DataService {
       fat: 0,
       fiber: 0,
       sugar: 0,
-      sodium: 0
+      sodium: 0,
     };
 
-    Object.values(meals).forEach(meal => {
+    Object.values(meals).forEach((meal) => {
       if (Array.isArray(meal)) {
-        meal.forEach(food => {
+        meal.forEach((food) => {
           const serving = food.serving || food;
           totals.calories += serving.calories || 0;
           totals.protein += serving.protein || 0;
@@ -497,17 +349,17 @@ class DataService {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const cutoffDate = this.formatDate(thirtyDaysAgo);
-      
-      const keysToRemove = keys.filter(key => {
+
+      const keysToRemove = keys.filter((key) => {
         const match = key.match(/nutrition_.*_(\d{4}-\d{2}-\d{2})/);
         return match && match[1] < cutoffDate;
       });
-      
+
       if (keysToRemove.length > 0) {
         await AsyncStorage.multiRemove(keysToRemove);
       }
     } catch (error) {
-      console.error('Cache temizleme hatası:', error);
+      console.error("Cache temizleme hatası:", error);
     }
   }
 
@@ -516,27 +368,27 @@ class DataService {
     return {
       isOnline: this.isOnline(),
       isSyncing: this.isSyncing,
-      queueLength: this.syncQueue.length
+      queueLength: this.syncQueue.length,
     };
   }
 
   // Sync kuyruğunu temizle
   clearSyncQueue() {
     this.syncQueue = [];
-    AsyncStorage.removeItem('sync_queue');
+    AsyncStorage.removeItem("sync_queue");
   }
 
   // Sync kuyruğunu yükle
   async loadSyncQueue() {
     try {
-      const stored = await AsyncStorage.getItem('sync_queue');
+      const stored = await AsyncStorage.getItem("sync_queue");
       if (stored) {
         this.syncQueue = JSON.parse(stored);
       }
     } catch (error) {
-      console.error('Sync queue yükleme hatası:', error);
+      console.error("Sync queue yükleme hatası:", error);
     }
   }
 }
 
-export default new DataService(); 
+export default new DataService();
