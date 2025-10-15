@@ -1,54 +1,55 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { View, ActivityIndicator, Text } from 'react-native';
-import { Provider as PaperProvider } from 'react-native-paper';
-import useAuthStore from './src/store/authStore';
-import useDietStore from './src/store/dietStore';
-import { appTheme } from './src/theme/simpleTheme';
-import { safeAsync } from './src/utils/asyncUtils';
-import { NotificationProvider } from './src/services/NotificationService';
+import React, { useEffect, useState } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import * as Linking from "expo-linking";
+import { createStackNavigator } from "@react-navigation/stack";
+import { View, ActivityIndicator, Text } from "react-native";
+import { Provider as PaperProvider } from "react-native-paper";
+import useAuthStore from "./src/store/authStore";
+import useDietStore from "./src/store/dietStore";
+import { appTheme } from "./src/theme/simpleTheme";
+import { safeAsync } from "./src/utils/asyncUtils";
+import { NotificationProvider } from "./src/services/NotificationService";
 
 // Auth & Setup Screens
-import SplashScreen from './src/screens/SplashScreen';
-import OnboardingScreen from './src/screens/OnboardingScreen';
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
-import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
-import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
-import MainScreen from './src/screens/MainScreen';
+import SplashScreen from "./src/screens/SplashScreen";
+import OnboardingScreen from "./src/screens/OnboardingScreen";
+import LoginScreen from "./src/screens/LoginScreen";
+import RegisterScreen from "./src/screens/RegisterScreen";
+import ForgotPasswordScreen from "./src/screens/auth/ForgotPasswordScreen";
+import ProfileSetupScreen from "./src/screens/ProfileSetupScreen";
+import MainScreen from "./src/screens/MainScreen";
 
 // Diet Module Screens
-import AddMealScreen from './src/screens/AddMealScreen';
-import FoodSearchScreen from './src/screens/FoodSearchScreen';
-import FoodDetailScreen from './src/screens/FoodDetailScreen';
-import ManualFoodAddScreen from './src/screens/ManualFoodAddScreen';
-import WaterTrackingScreen from './src/screens/WaterTrackingScreen';
-import SupplementTrackingScreen from './src/screens/SupplementTrackingScreen';
-import NutritionGoalsScreen from './src/screens/NutritionGoalsScreen';
+import AddMealScreen from "./src/screens/AddMealScreen";
+import FoodSearchScreen from "./src/screens/FoodSearchScreen";
+import FoodDetailScreen from "./src/screens/FoodDetailScreen";
+import ManualFoodAddScreen from "./src/screens/ManualFoodAddScreen";
+import WaterTrackingScreen from "./src/screens/WaterTrackingScreen";
+import SupplementTrackingScreen from "./src/screens/SupplementTrackingScreen";
+import NutritionGoalsScreen from "./src/screens/NutritionGoalsScreen";
 
 // Workout Module Screens
-import WorkoutDashboardScreen from './src/screens/WorkoutDashboardScreen';
-import StartWorkoutScreen from './src/screens/StartWorkoutScreen';
-import WorkoutEntryScreen from './src/screens/WorkoutEntryScreen';
-import WorkoutCompletionScreen from './src/screens/WorkoutCompletionScreen';
-import WorkoutHistoryScreen from './src/screens/WorkoutHistoryScreen';
-import ExerciseLibraryScreen from './src/screens/ExerciseLibraryScreen';
-import ExerciseDetailScreen from './src/screens/ExerciseDetailScreen';
+import WorkoutDashboardScreen from "./src/screens/WorkoutDashboardScreen";
+import StartWorkoutScreen from "./src/screens/StartWorkoutScreen";
+import WorkoutEntryScreen from "./src/screens/WorkoutEntryScreen";
+import WorkoutCompletionScreen from "./src/screens/WorkoutCompletionScreen";
+import WorkoutHistoryScreen from "./src/screens/WorkoutHistoryScreen";
+import ExerciseLibraryScreen from "./src/screens/ExerciseLibraryScreen";
+import ExerciseDetailScreen from "./src/screens/ExerciseDetailScreen";
 
 // Progress Module Screens
-import ProgressDashboardScreen from './src/screens/ProgressDashboardScreen';
-import AddWeightScreen from './src/screens/AddWeightScreen';
-import AddMeasurementScreen from './src/screens/AddMeasurementScreen';
-import ProgressHistoryScreen from './src/screens/ProgressHistoryScreen';
-import PhotoProgressScreen from './src/screens/PhotoProgressScreen';
+import ProgressDashboardScreen from "./src/screens/ProgressDashboardScreen";
+import AddWeightScreen from "./src/screens/AddWeightScreen";
+import AddMeasurementScreen from "./src/screens/AddMeasurementScreen";
+import ProgressHistoryScreen from "./src/screens/ProgressHistoryScreen";
+import PhotoProgressScreen from "./src/screens/PhotoProgressScreen";
 
 // Reminders Module Screens
-import RemindersListScreen from './src/screens/RemindersListScreen';
-import AddEditReminderScreen from './src/screens/AddEditReminderScreen';
+import RemindersListScreen from "./src/screens/RemindersListScreen";
+import AddEditReminderScreen from "./src/screens/AddEditReminderScreen";
 
 // Store imports
-import workoutStore from './src/store/workoutStore';
+import workoutStore from "./src/store/workoutStore";
 
 const Stack = createStackNavigator();
 
@@ -64,33 +65,39 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.log('Error caught by boundary:', error, errorInfo);
+    console.log("Error caught by boundary:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ 
-          flex: 1, 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          padding: 20,
-          backgroundColor: '#f8f9fa'
-        }}>
-          <Text style={{ 
-            fontSize: 18, 
-            fontWeight: 'bold', 
-            marginBottom: 10,
-            textAlign: 'center'
-          }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+            backgroundColor: "#f8f9fa",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "bold",
+              marginBottom: 10,
+              textAlign: "center",
+            }}
+          >
             Bir hata oluştu
           </Text>
-          <Text style={{ 
-            fontSize: 14, 
-            color: '#666', 
-            textAlign: 'center',
-            marginBottom: 20
-          }}>
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#666",
+              textAlign: "center",
+              marginBottom: 20,
+            }}
+          >
             Uygulamayı yeniden başlatın veya geliştiriciye bildirin.
           </Text>
         </View>
@@ -103,31 +110,99 @@ class ErrorBoundary extends React.Component {
 
 // Loading Screen Component
 const LoadingScreen = () => (
-  <View style={{ 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: appTheme?.colors?.background || '#f8f9fa'
-  }}>
-    <ActivityIndicator size="large" color={appTheme?.colors?.primary || '#6C5CE7'} />
+  <View
+    style={{
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: appTheme?.colors?.background || "#f8f9fa",
+    }}
+  >
+    <ActivityIndicator
+      size="large"
+      color={appTheme?.colors?.primary || "#6C5CE7"}
+    />
   </View>
 );
 
 // Main App Navigation Component
 function AppNavigator() {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { isAuthenticated, isLoading, initializeAuth, initializeDemoDb, loadDemoUser } = useAuthStore();
+  const {
+    isAuthenticated,
+    isLoading,
+    initializeAuth,
+    checkSession,
+    initializeDemoDb,
+    loadDemoUser,
+  } = useAuthStore();
+  const linking = {
+    prefixes: [Linking.createURL("/"), "myfitapp://"],
+    config: {
+      screens: {
+        Login: "login",
+        Main: "",
+      },
+    },
+  };
 
-  // Initialize Firebase auth on startup
+  // Initialize Supabase Auth on startup
   useEffect(() => {
-    const unsubscribe = initializeAuth();
-    return unsubscribe;
+    const initAuth = async () => {
+      try {
+        // Check for existing session (Supabase)
+        await checkSession();
+
+        // Initialize auth state listener (Supabase)
+        const unsubscribe = initializeAuth();
+
+        console.log("✅ Supabase Auth initialized");
+
+        // Cleanup on unmount
+        return () => {
+          if (unsubscribe && typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      } catch (error) {
+        console.error("❌ Auth initialization error:", error);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  // Handle OAuth deep links from Google sign-in
+  useEffect(() => {
+    const handleUrl = async (event) => {
+      try {
+        const url = event.url;
+        if (!url) return;
+        // Delegate to auth service to finalize session
+        const {
+          supabaseAuthService,
+        } = require("./src/services/supabaseAuthService");
+        await supabaseAuthService.handleOpenURL(url);
+      } catch (e) {
+        console.warn("Deep link handling error:", e);
+      }
+    };
+
+    const subscription = Linking.addEventListener("url", handleUrl);
+    // In case the app was cold-started by the link
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   // Initialize app on startup
   useEffect(() => {
     let isMounted = true;
-    
+
     const initApp = async () => {
       try {
         // Initialize demo database
@@ -137,15 +212,15 @@ function AppNavigator() {
             await initializeDemoDb();
           }
         });
-        
+
         // Check if demo user was previously logged in
         await safeAsync(async () => {
           const { loadDemoUser } = useAuthStore.getState();
           if (loadDemoUser) {
-            await loadDemoUser('demo-user-id');
+            await loadDemoUser("demo-user-id");
           }
         });
-        
+
         // Initialize other stores in a controlled way
         await safeAsync(() => {
           const { initializeMockData } = workoutStore.getState();
@@ -153,7 +228,7 @@ function AppNavigator() {
             initializeMockData();
           }
         });
-        
+
         // Load cached diet data
         await safeAsync(async () => {
           const { loadDailyData, selectedDate } = useDietStore.getState();
@@ -161,9 +236,8 @@ function AppNavigator() {
             await loadDailyData(selectedDate);
           }
         });
-        
       } catch (error) {
-        console.error('App initialization error:', error);
+        console.error("App initialization error:", error);
       } finally {
         if (isMounted) {
           setIsInitialized(true);
@@ -172,7 +246,7 @@ function AppNavigator() {
     };
 
     initApp();
-    
+
     return () => {
       isMounted = false;
     };
@@ -186,15 +260,15 @@ function AppNavigator() {
   // Determine initial route based on auth status
   const getInitialRouteName = () => {
     if (!isAuthenticated) {
-      return 'Splash';
+      return "Splash";
     }
-    
-    return 'Main';
+
+    return "Main";
   };
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator 
+    <NavigationContainer linking={linking}>
+      <Stack.Navigator
         initialRouteName={getInitialRouteName()}
         screenOptions={{ headerShown: false }}
       >
@@ -205,42 +279,73 @@ function AppNavigator() {
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-        
+
         {/* Main App */}
         <Stack.Screen name="Main" component={MainScreen} />
-        
+
         {/* Diet Screens */}
         <Stack.Screen name="AddMeal" component={AddMealScreen} />
         <Stack.Screen name="FoodSearch" component={FoodSearchScreen} />
         <Stack.Screen name="FoodDetail" component={FoodDetailScreen} />
         <Stack.Screen name="ManualFoodAdd" component={ManualFoodAddScreen} />
         <Stack.Screen name="WaterTracking" component={WaterTrackingScreen} />
-        <Stack.Screen name="SupplementTracking" component={SupplementTrackingScreen} />
+        <Stack.Screen
+          name="SupplementTracking"
+          component={SupplementTrackingScreen}
+        />
         <Stack.Screen name="NutritionGoals" component={NutritionGoalsScreen} />
-        
+
         {/* Workout Screens */}
-        <Stack.Screen name="WorkoutDashboard" component={WorkoutDashboardScreen} />
+        <Stack.Screen
+          name="WorkoutDashboard"
+          component={WorkoutDashboardScreen}
+        />
         <Stack.Screen name="StartWorkout" component={StartWorkoutScreen} />
         <Stack.Screen name="WorkoutEntry" component={WorkoutEntryScreen} />
-        <Stack.Screen name="WorkoutCompletion" component={WorkoutCompletionScreen} />
+        <Stack.Screen
+          name="WorkoutCompletion"
+          component={WorkoutCompletionScreen}
+        />
         <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
-        <Stack.Screen name="ExerciseLibrary" component={ExerciseLibraryScreen} />
+        <Stack.Screen
+          name="ExerciseLibrary"
+          component={ExerciseLibraryScreen}
+        />
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
-        
+
         {/* 🏆 NEW PROFESSIONAL EXERCISE SCREENS */}
-        <Stack.Screen name="ExerciseList" component={require('./src/screens/ProfessionalExerciseListScreen').default} />
-        <Stack.Screen name="ProExerciseDetail" component={require('./src/screens/ProfessionalExerciseDetailScreen').default} />
-        
+        <Stack.Screen
+          name="ExerciseList"
+          component={
+            require("./src/screens/ProfessionalExerciseListScreen").default
+          }
+        />
+        <Stack.Screen
+          name="ProExerciseDetail"
+          component={
+            require("./src/screens/ProfessionalExerciseDetailScreen").default
+          }
+        />
+
         {/* Progress Screens */}
-        <Stack.Screen name="ProgressDashboard" component={ProgressDashboardScreen} />
+        <Stack.Screen
+          name="ProgressDashboard"
+          component={ProgressDashboardScreen}
+        />
         <Stack.Screen name="AddWeight" component={AddWeightScreen} />
         <Stack.Screen name="AddMeasurement" component={AddMeasurementScreen} />
-        <Stack.Screen name="ProgressHistory" component={ProgressHistoryScreen} />
+        <Stack.Screen
+          name="ProgressHistory"
+          component={ProgressHistoryScreen}
+        />
         <Stack.Screen name="PhotoProgress" component={PhotoProgressScreen} />
-        
+
         {/* Reminder Screens */}
         <Stack.Screen name="RemindersList" component={RemindersListScreen} />
-        <Stack.Screen name="AddEditReminder" component={AddEditReminderScreen} />
+        <Stack.Screen
+          name="AddEditReminder"
+          component={AddEditReminderScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

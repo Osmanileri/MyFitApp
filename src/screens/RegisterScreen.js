@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,85 +10,118 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import useAuthStore from '../store/authStore';
-import { appTheme } from '../theme/simpleTheme';
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import useAuthStore from "../store/authStore";
+import { appTheme } from "../theme/simpleTheme";
 
 const RegisterScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const { register, isLoading, error, clearError } = useAuthStore();
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Ad gereklidir';
+      newErrors.firstName = "Ad gereklidir";
     }
-    
+
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Soyad gereklidir';
+      newErrors.lastName = "Soyad gereklidir";
     }
-    
+
     if (!formData.email.trim()) {
-      newErrors.email = 'Email gereklidir';
+      newErrors.email = "Email gereklidir";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Geçerli bir email adresi girin';
+      newErrors.email = "Geçerli bir email adresi girin";
     }
-    
+
     if (!formData.password) {
-      newErrors.password = 'Şifre gereklidir';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Şifre en az 6 karakter olmalıdır';
+      newErrors.password = "Şifre gereklidir";
+    } else if (formData.password.length < 8) {
+      newErrors.password =
+        "Şifre en az 8 karakter olmalıdır (1 büyük, 1 küçük harf, 1 rakam)";
+    } else if (!/[A-Z]/.test(formData.password)) {
+      newErrors.password = "Şifre en az 1 büyük harf içermelidir";
+    } else if (!/[a-z]/.test(formData.password)) {
+      newErrors.password = "Şifre en az 1 küçük harf içermelidir";
+    } else if (!/[0-9]/.test(formData.password)) {
+      newErrors.password = "Şifre en az 1 rakam içermelidir";
     }
-    
+
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Şifre tekrarı gereklidir';
+      newErrors.confirmPassword = "Şifre tekrarı gereklidir";
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Şifreler eşleşmiyor';
+      newErrors.confirmPassword = "Şifreler eşleşmiyor";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleRegister = async () => {
     if (!validateForm()) return;
-    
+
     clearError();
-    
+
     const userInfo = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       displayName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
     };
-    
-    const result = await register(formData.email.trim().toLowerCase(), formData.password, userInfo);
-    
+
+    const result = await register(
+      formData.email.trim().toLowerCase(),
+      formData.password,
+      userInfo
+    );
+
     if (result.success) {
-      Alert.alert('Başarılı', 'Hesabınız başarıyla oluşturuldu!', [
-        { text: 'Tamam', onPress: () => navigation.navigate('Login') }
-      ]);
+      // Check if email verification is required
+      if (result.requiresEmailVerification) {
+        Alert.alert(
+          "✅ Kayıt Başarılı!",
+          "Lütfen email adresinizi kontrol edin ve hesabınızı doğrulayın. Doğrulama sonrası giriş yapabilirsiniz.",
+          [
+            {
+              text: "Tamam",
+              onPress: () => navigation.navigate("Login"),
+            },
+          ]
+        );
+      } else {
+        // Direct login (email verification disabled in Supabase)
+        Alert.alert(
+          "✅ Başarılı!",
+          "Hesabınız başarıyla oluşturuldu! Giriş yapabilirsiniz.",
+          [
+            {
+              text: "Giriş Yap",
+              onPress: () => navigation.navigate("Login"),
+            },
+          ]
+        );
+      }
     } else {
-      Alert.alert('Kayıt Hatası', result.error || 'Kayıt oluşturulamadı');
+      Alert.alert("❌ Kayıt Hatası", result.error || "Kayıt oluşturulamadı");
     }
   };
 
@@ -101,15 +134,17 @@ const RegisterScreen = ({ navigation }) => {
       >
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Hesap Oluştur</Text>
-          <Text style={styles.headerSubtitle}>Fitness yolculuğunuza başlayın</Text>
+          <Text style={styles.headerSubtitle}>
+            Fitness yolculuğunuza başlayın
+          </Text>
         </View>
       </LinearGradient>
 
       <KeyboardAvoidingView
         style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
@@ -120,12 +155,14 @@ const RegisterScreen = ({ navigation }) => {
               <TextInput
                 style={[styles.input, errors.firstName && styles.inputError]}
                 value={formData.firstName}
-                onChangeText={(value) => handleInputChange('firstName', value)}
+                onChangeText={(value) => handleInputChange("firstName", value)}
                 placeholder="Adınızı girin"
                 placeholderTextColor={appTheme.colors.textSecondary}
                 autoCapitalize="words"
               />
-              {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
+              {errors.firstName ? (
+                <Text style={styles.errorText}>{errors.firstName}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputContainer}>
@@ -133,12 +170,14 @@ const RegisterScreen = ({ navigation }) => {
               <TextInput
                 style={[styles.input, errors.lastName && styles.inputError]}
                 value={formData.lastName}
-                onChangeText={(value) => handleInputChange('lastName', value)}
+                onChangeText={(value) => handleInputChange("lastName", value)}
                 placeholder="Soyadınızı girin"
                 placeholderTextColor={appTheme.colors.textSecondary}
                 autoCapitalize="words"
               />
-              {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
+              {errors.lastName ? (
+                <Text style={styles.errorText}>{errors.lastName}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputContainer}>
@@ -146,23 +185,30 @@ const RegisterScreen = ({ navigation }) => {
               <TextInput
                 style={[styles.input, errors.email && styles.inputError]}
                 value={formData.email}
-                onChangeText={(value) => handleInputChange('email', value)}
+                onChangeText={(value) => handleInputChange("email", value)}
                 placeholder="email@example.com"
                 placeholderTextColor={appTheme.colors.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+              {errors.email ? (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Şifre</Text>
-              <View style={[styles.passwordContainer, errors.password && styles.inputError]}>
+              <View
+                style={[
+                  styles.passwordContainer,
+                  errors.password && styles.inputError,
+                ]}
+              >
                 <TextInput
                   style={styles.passwordInput}
                   value={formData.password}
-                  onChangeText={(value) => handleInputChange('password', value)}
+                  onChangeText={(value) => handleInputChange("password", value)}
                   placeholder="En az 6 karakter"
                   placeholderTextColor={appTheme.colors.textSecondary}
                   secureTextEntry={!showPassword}
@@ -173,19 +219,30 @@ const RegisterScreen = ({ navigation }) => {
                   onPress={() => setShowPassword(!showPassword)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+                  <Text style={styles.eyeText}>
+                    {showPassword ? "🙈" : "👁️"}
+                  </Text>
                 </TouchableOpacity>
               </View>
-              {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+              {errors.password ? (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Şifre Tekrar</Text>
-              <View style={[styles.passwordContainer, errors.confirmPassword && styles.inputError]}>
+              <View
+                style={[
+                  styles.passwordContainer,
+                  errors.confirmPassword && styles.inputError,
+                ]}
+              >
                 <TextInput
                   style={styles.passwordInput}
                   value={formData.confirmPassword}
-                  onChangeText={(value) => handleInputChange('confirmPassword', value)}
+                  onChangeText={(value) =>
+                    handleInputChange("confirmPassword", value)
+                  }
                   placeholder="Şifrenizi tekrar girin"
                   placeholderTextColor={appTheme.colors.textSecondary}
                   secureTextEntry={!showConfirmPassword}
@@ -196,14 +253,21 @@ const RegisterScreen = ({ navigation }) => {
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.eyeText}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
+                  <Text style={styles.eyeText}>
+                    {showConfirmPassword ? "🙈" : "👁️"}
+                  </Text>
                 </TouchableOpacity>
               </View>
-              {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
+              {errors.confirmPassword ? (
+                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+              ) : null}
             </View>
 
             <TouchableOpacity
-              style={[styles.registerButton, isLoading && styles.disabledButton]}
+              style={[
+                styles.registerButton,
+                isLoading && styles.disabledButton,
+              ]}
               onPress={handleRegister}
               disabled={isLoading}
               activeOpacity={0.8}
@@ -224,7 +288,7 @@ const RegisterScreen = ({ navigation }) => {
           <View style={styles.footer}>
             <Text style={styles.footerText}>Zaten hesabınız var mı? </Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate('Login')}
+              onPress={() => navigation.navigate("Login")}
               activeOpacity={0.7}
             >
               <Text style={styles.loginText}>Giriş Yap</Text>
@@ -247,20 +311,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   headerContent: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: appTheme.colors.white,
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   headerSubtitle: {
     fontSize: 16,
     color: appTheme.colors.white,
     opacity: 0.9,
-    textAlign: 'center',
+    textAlign: "center",
   },
   content: {
     flex: 1,
@@ -280,7 +344,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: appTheme.colors.text,
     marginBottom: 8,
   },
@@ -295,17 +359,17 @@ const styles = StyleSheet.create({
     ...appTheme.shadows.small,
   },
   inputError: {
-    borderColor: appTheme.colors.error || '#ff4444',
+    borderColor: appTheme.colors.error || "#ff4444",
   },
   errorText: {
-    color: appTheme.colors.error || '#ff4444',
+    color: appTheme.colors.error || "#ff4444",
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,
   },
   passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: appTheme.colors.border,
     borderRadius: 12,
@@ -327,12 +391,12 @@ const styles = StyleSheet.create({
   registerButton: {
     borderRadius: 12,
     marginTop: 10,
-    overflow: 'hidden',
+    overflow: "hidden",
     ...appTheme.shadows.medium,
   },
   buttonGradient: {
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   disabledButton: {
     opacity: 0.6,
@@ -340,12 +404,12 @@ const styles = StyleSheet.create({
   registerButtonText: {
     color: appTheme.colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 20,
   },
   footerText: {
@@ -355,8 +419,8 @@ const styles = StyleSheet.create({
   loginText: {
     color: appTheme.colors.primary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 
-export default RegisterScreen; 
+export default RegisterScreen;

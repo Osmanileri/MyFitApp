@@ -1,138 +1,147 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
   SafeAreaView,
   StatusBar,
   Dimensions,
   Alert,
-  RefreshControl
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import workoutStore from '../store/workoutStore';
-import WorkoutTheme from '../theme/workoutTheme';
+  RefreshControl,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import workoutStore from "../store/workoutStore";
+import WorkoutTheme from "../theme/workoutTheme";
 
 // FALLBACK THEME
 const FALLBACK_THEME = {
-  background: '#121212',
-  text: '#FFFFFF',
-  textSecondary: '#B0B0B0',
-  primary: '#FBC02D'
+  background: "#121212",
+  text: "#FFFFFF",
+  textSecondary: "#B0B0B0",
+  primary: "#FBC02D",
 };
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 
 export default function WorkoutDashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
-  
-  const { 
-    workouts, 
+
+  const {
+    workouts,
     isWorkoutActive,
     currentWorkout,
     totalWorkouts,
     currentWeekWorkouts,
     weeklyGoal,
     averageWorkoutDuration,
-    getRecentWorkouts
+    getRecentWorkouts,
   } = workoutStore();
 
   // Use centralized theme
   const theme = WorkoutTheme || FALLBACK_THEME;
 
   const recentWorkouts = getRecentWorkouts(3);
-  const weeklyProgress = Math.min((currentWeekWorkouts / weeklyGoal) * 100, 100);
+  const weeklyProgress = Math.min(
+    (currentWeekWorkouts / weeklyGoal) * 100,
+    100
+  );
 
   const quickCategories = [
-    { 
-      id: 'push', 
-      name: 'Push', 
-      icon: 'weight-lifter', 
-      color: '#FF6B35',
-      exercises: ['Bench Press', 'Shoulder Press', 'Tricep Dips'],
-      backgroundColor: '#FF6B35'
+    {
+      id: "push",
+      name: "Push",
+      icon: "weight-lifter",
+      color: "#FF6B35",
+      exercises: ["Bench Press", "Shoulder Press", "Tricep Dips"],
+      backgroundColor: "#FF6B35",
     },
-    { 
-      id: 'pull', 
-      name: 'Pull', 
-      icon: 'arm-flex', 
-      color: '#4CAF50',
-      exercises: ['Pull-ups', 'Barbell Row', 'Bicep Curls'],
-      backgroundColor: '#4CAF50'
+    {
+      id: "pull",
+      name: "Pull",
+      icon: "arm-flex",
+      color: "#4CAF50",
+      exercises: ["Pull-ups", "Barbell Row", "Bicep Curls"],
+      backgroundColor: "#4CAF50",
     },
-    { 
-      id: 'legs', 
-      name: 'Legs', 
-      icon: 'run', 
-      color: '#2196F3',
-      exercises: ['Squats', 'Deadlifts', 'Lunges'],
-      backgroundColor: '#2196F3'
+    {
+      id: "legs",
+      name: "Legs",
+      icon: "run",
+      color: "#2196F3",
+      exercises: ["Squats", "Deadlifts", "Lunges"],
+      backgroundColor: "#2196F3",
     },
-    { 
-      id: 'cardio', 
-      name: 'Cardio', 
-      icon: 'heart-pulse', 
-      color: '#E91E63',
-      exercises: ['Treadmill', 'Cycling', 'HIIT'],
-      backgroundColor: '#E91E63'
-    }
+    {
+      id: "cardio",
+      name: "Cardio",
+      icon: "heart-pulse",
+      color: "#E91E63",
+      exercises: ["Treadmill", "Cycling", "HIIT"],
+      backgroundColor: "#E91E63",
+    },
   ];
 
   const quickActions = [
     {
-      id: 'start_empty',
-      title: 'Boş Antrenman',
-      subtitle: 'Sıfırdan başla',
-      icon: 'plus-circle',
+      id: "start_empty",
+      title: "Boş Antrenman",
+      subtitle: "Sıfırdan başla",
+      icon: "plus-circle",
       color: theme.primary,
-      action: () => navigation.navigate('StartWorkout')
+      action: () => navigation.navigate("StartWorkout"),
     },
     {
-      id: 'from_template',
-      title: 'Şablondan Seç',
-      subtitle: 'Hazır programlar',
-      icon: 'content-duplicate',
+      id: "from_template",
+      title: "Şablondan Seç",
+      subtitle: "Hazır programlar",
+      icon: "content-duplicate",
       color: theme.secondary,
-      action: () => navigation.navigate('WorkoutEntry', { mode: 'template' })
+      action: () => navigation.navigate("WorkoutEntry", { mode: "template" }),
     },
     {
-      id: 'repeat_last',
-      title: 'Son Antrenmanı Tekrarla',
-      subtitle: recentWorkouts.length > 0 ? recentWorkouts[0]?.name || 'Antrenman' : 'Henüz yok',
-      icon: 'replay',
+      id: "repeat_last",
+      title: "Son Antrenmanı Tekrarla",
+      subtitle:
+        recentWorkouts.length > 0
+          ? recentWorkouts[0]?.name || "Antrenman"
+          : "Henüz yok",
+      icon: "replay",
       color: theme.accent,
       action: () => {
         if (recentWorkouts.length > 0) {
-          navigation.navigate('WorkoutEntry', { mode: 'repeat', workout: recentWorkouts[0] });
+          navigation.navigate("WorkoutEntry", {
+            mode: "repeat",
+            workout: recentWorkouts[0],
+          });
         } else {
-          Alert.alert('Bilgi', 'Henüz kaydedilmiş antrenman yok');
+          Alert.alert("Bilgi", "Henüz kaydedilmiş antrenman yok");
         }
-      }
-    }
+      },
+    },
   ];
 
   const handleCategoryPress = (category) => {
-    navigation.navigate('StartWorkout', { 
+    navigation.navigate("StartWorkout", {
       category: category.id,
-      suggestedExercises: category.exercises 
+      suggestedExercises: category.exercises,
     });
   };
 
   const handleActiveWorkoutPress = () => {
     if (currentWorkout) {
-      navigation.navigate('WorkoutEntry', { mode: 'live' });
+      navigation.navigate("WorkoutEntry", { mode: "live" });
     }
   };
 
   const handleHistoryPress = () => {
-    navigation.navigate('WorkoutHistory');
+    navigation.navigate("WorkoutHistory");
   };
 
   const handleExerciseLibraryPress = () => {
-    navigation.navigate('ExerciseLibrary');
+    navigation.navigate("ExerciseLibrary");
   };
 
   // Header istatistikleri
@@ -158,13 +167,13 @@ export default function WorkoutDashboardScreen({ navigation }) {
     if (!isWorkoutActive || !currentWorkout) return null;
 
     return (
-      <TouchableOpacity 
-        style={styles.activeWorkoutCard} 
+      <TouchableOpacity
+        style={styles.activeWorkoutCard}
         onPress={handleActiveWorkoutPress}
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#FF6B35', '#FF8A50']}
+          colors={["#FF6B35", "#FF8A50"]}
           style={styles.activeWorkoutGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -172,9 +181,15 @@ export default function WorkoutDashboardScreen({ navigation }) {
           <View style={styles.activeWorkoutContent}>
             <View style={styles.activeWorkoutInfo}>
               <Text style={styles.activeWorkoutTitle}>Aktif Antrenman</Text>
-              <Text style={styles.activeWorkoutName}>{currentWorkout.name}</Text>
+              <Text style={styles.activeWorkoutName}>
+                {currentWorkout.name}
+              </Text>
             </View>
-            <MaterialCommunityIcons name="play-circle" size={40} color="#FFFFFF" />
+            <MaterialCommunityIcons
+              name="play-circle"
+              size={40}
+              color="#FFFFFF"
+            />
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -183,7 +198,7 @@ export default function WorkoutDashboardScreen({ navigation }) {
 
   // Hızlı kategori kartları
   const CategoryCard = ({ category }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.categoryCard}
       onPress={() => handleCategoryPress(category)}
       activeOpacity={0.8}
@@ -194,10 +209,10 @@ export default function WorkoutDashboardScreen({ navigation }) {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <MaterialCommunityIcons 
-          name={category.icon} 
-          size={32} 
-          color="#FFFFFF" 
+        <MaterialCommunityIcons
+          name={category.icon}
+          size={32}
+          color="#FFFFFF"
         />
         <Text style={styles.categoryName}>{category.name}</Text>
         <Text style={styles.categoryExercises}>
@@ -209,26 +224,31 @@ export default function WorkoutDashboardScreen({ navigation }) {
 
   // Hızlı aksiyonlar
   const QuickActionCard = ({ action }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.quickActionCard}
       onPress={action.action}
       activeOpacity={0.8}
     >
-      <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
-        <MaterialCommunityIcons 
-          name={action.icon} 
-          size={24} 
-          color={action.color} 
+      <View
+        style={[
+          styles.quickActionIcon,
+          { backgroundColor: action.color + "20" },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={action.icon}
+          size={24}
+          color={action.color}
         />
       </View>
       <View style={styles.quickActionText}>
         <Text style={styles.quickActionTitle}>{action.title}</Text>
         <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
       </View>
-      <MaterialCommunityIcons 
-        name="chevron-right" 
-        size={20} 
-        color={theme.textSecondary} 
+      <MaterialCommunityIcons
+        name="chevron-right"
+        size={20}
+        color={theme.textSecondary}
       />
     </TouchableOpacity>
   );
@@ -246,19 +266,23 @@ export default function WorkoutDashboardScreen({ navigation }) {
           </TouchableOpacity>
         </View>
         {recentWorkouts.slice(0, 3).map((workout, index) => (
-          <TouchableOpacity 
-            key={workout.id || index} 
+          <TouchableOpacity
+            key={workout.id || index}
             style={styles.recentWorkoutCard}
-            onPress={() => navigation.navigate('WorkoutEntry', { mode: 'view', workout })}
+            onPress={() =>
+              navigation.navigate("WorkoutEntry", { mode: "view", workout })
+            }
           >
             <View style={styles.recentWorkoutInfo}>
               <Text style={styles.recentWorkoutName}>{workout.name}</Text>
               <Text style={styles.recentWorkoutDate}>
-                {new Date(workout.date).toLocaleDateString('tr-TR')}
+                {new Date(workout.date).toLocaleDateString("tr-TR")}
               </Text>
             </View>
             <View style={styles.recentWorkoutStats}>
-              <Text style={styles.recentWorkoutDuration}>{workout.duration}dk</Text>
+              <Text style={styles.recentWorkoutDuration}>
+                {workout.duration}dk
+              </Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -268,29 +292,60 @@ export default function WorkoutDashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor={theme?.background || theme?.colors?.background || '#121212'} barStyle="light-content" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcomeText}>Antrenman</Text>
-          <Text style={styles.headerTitle}>Zamanı Geldi! 💪</Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.settingsButton}
-          onPress={handleExerciseLibraryPress}
-        >
-          <MaterialCommunityIcons name="dumbbell" size={24} color={theme.text} />
-        </TouchableOpacity>
-      </View>
+      <StatusBar
+        backgroundColor={
+          theme?.background || theme?.colors?.background || "#121212"
+        }
+        barStyle="light-content"
+      />
 
-      <ScrollView 
+      {/* Header */}
+      <LinearGradient
+        colors={["#667eea", "#764ba2"]}
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.welcomeText}>Antrenman</Text>
+            <Text style={styles.headerTitle}>Zamanı Geldi! 💪</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={handleExerciseLibraryPress}
+          >
+            <MaterialCommunityIcons
+              name="dumbbell"
+              size={24}
+              color={theme.text}
+            />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => setRefreshing(false)} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => setRefreshing(false)}
+          />
         }
       >
+        {/* Empty state: no workouts */}
+        {(!recentWorkouts || recentWorkouts.length === 0) &&
+          !isWorkoutActive && (
+            <View style={styles.emptyCard}>
+              <MaterialCommunityIcons
+                name="lightning-bolt"
+                size={20}
+                color="#B0B0B0"
+              />
+              <Text style={styles.emptyText}>Hemen bir antrenman başlatın</Text>
+            </View>
+          )}
         {/* İstatistikler */}
         <HeaderStats />
 
@@ -318,6 +373,15 @@ export default function WorkoutDashboardScreen({ navigation }) {
         {/* Son Antrenmanlar */}
         <RecentWorkouts />
       </ScrollView>
+
+      {/* Primary FAB: Start Workout */}
+      <TouchableOpacity
+        style={styles.fab}
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate("StartWorkout")}
+      >
+        <MaterialCommunityIcons name="play" size={26} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -325,153 +389,160 @@ export default function WorkoutDashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: "#0A0A0A",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: "#333333",
   },
   welcomeText: {
     fontSize: 14,
-    color: '#B0B0B0',
+    color: "#B0B0B0",
     marginBottom: 4,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   settingsButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#1A1A1A',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#1A1A1A",
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     flex: 1,
   },
+  headerGradient: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
   headerStats: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   statCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: "#1A1A1A",
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
     marginHorizontal: 4,
   },
   statNumber: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFC107',
+    fontWeight: "bold",
+    color: "#FFC107",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#B0B0B0',
+    color: "#B0B0B0",
   },
   activeWorkoutCard: {
     marginHorizontal: 20,
     marginVertical: 16,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   activeWorkoutGradient: {
     padding: 20,
   },
   activeWorkoutContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   activeWorkoutInfo: {
     flex: 1,
   },
   activeWorkoutTitle: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     opacity: 0.8,
     marginBottom: 4,
   },
   activeWorkoutName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   section: {
     paddingHorizontal: 20,
     marginBottom: 24,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   seeAllText: {
     fontSize: 14,
-    color: '#FFC107',
-    fontWeight: '600',
+    color: "#FFC107",
+    fontWeight: "600",
   },
   categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   categoryCard: {
     width: (screenWidth - 60) / 2,
     marginBottom: 12,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   categoryGradient: {
     padding: 20,
-    alignItems: 'center',
+    alignItems: "center",
     minHeight: 120,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   categoryName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
     marginTop: 8,
     marginBottom: 4,
   },
   categoryExercises: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     opacity: 0.8,
   },
   quickActionCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: "#1A1A1A",
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   quickActionIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   quickActionText: {
@@ -479,21 +550,21 @@ const styles = StyleSheet.create({
   },
   quickActionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
     marginBottom: 2,
   },
   quickActionSubtitle: {
     fontSize: 12,
-    color: '#B0B0B0',
+    color: "#B0B0B0",
   },
   recentWorkoutCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: "#1A1A1A",
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   recentWorkoutInfo: {
@@ -501,20 +572,55 @@ const styles = StyleSheet.create({
   },
   recentWorkoutName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   recentWorkoutDate: {
     fontSize: 12,
-    color: '#B0B0B0',
+    color: "#B0B0B0",
   },
   recentWorkoutStats: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   recentWorkoutDuration: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FFC107',
+    fontWeight: "600",
+    color: "#FFC107",
   },
-}); 
+  // Empty state + FAB
+  emptyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#151515",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#262626",
+  },
+  emptyText: {
+    color: "#B0B0B0",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FF6B35",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+});

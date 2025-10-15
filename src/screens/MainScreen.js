@@ -1,34 +1,42 @@
-import React from 'react';
-import { View, Platform, StatusBar, Text, TouchableOpacity } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React from "react";
+import {
+  View,
+  Platform,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+} from "react-native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import DietScreen from './DietScreen';
-import WorkoutDashboardScreen from './WorkoutDashboardScreen';
-import ProgressScreen from './ProgressScreen';
-import ProfileScreen from './ProfileScreen';
-import { appTheme } from '../theme/simpleTheme';
+import DietScreen from "./DietScreen";
+import WorkoutDashboardScreen from "./WorkoutDashboardScreen";
+import ProgressDashboardScreen from "./ProgressDashboardScreen";
+import ProfileScreen from "./ProfileScreen";
+import { appTheme } from "../theme/simpleTheme";
 
 const Tab = createBottomTabNavigator();
 
 // Custom Tab Bar Component with Gradient Background
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
-  
+
   return (
-    <View style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: 'transparent',
-    }}>
+    <View
+      style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: "transparent",
+      }}
+    >
       <LinearGradient
-        colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.98)']}
+        colors={["rgba(255,255,255,0.95)", "rgba(255,255,255,0.98)"]}
         style={{
-          flexDirection: 'row',
+          flexDirection: "row",
           height: 80 + insets.bottom,
           paddingBottom: insets.bottom,
           borderTopWidth: 0.5,
@@ -38,17 +46,18 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       >
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
-          const label = options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-            ? options.title
-            : route.name;
+          const label =
+            options.tabBarLabel !== undefined
+              ? options.tabBarLabel
+              : options.title !== undefined
+              ? options.title
+              : route.name;
 
           const isFocused = state.index === index;
 
           const onPress = () => {
             const event = navigation.emit({
-              type: 'tabPress',
+              type: "tabPress",
               target: route.key,
               canPreventDefault: true,
             });
@@ -60,7 +69,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
           const onLongPress = () => {
             navigation.emit({
-              type: 'tabLongPress',
+              type: "tabLongPress",
               target: route.key,
             });
           };
@@ -68,20 +77,20 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           // Icon mapping
           let iconName;
           switch (route.name) {
-            case 'Diet':
-              iconName = 'nutrition';
+            case "Diet":
+              iconName = "nutrition";
               break;
-            case 'Workout':
-              iconName = 'dumbbell';
+            case "Workout":
+              iconName = "dumbbell";
               break;
-            case 'Progress':
-              iconName = 'chart-timeline-variant';
+            case "Progress":
+              iconName = "chart-timeline-variant";
               break;
-            case 'Profile':
-              iconName = 'account-circle';
+            case "Profile":
+              iconName = "account-circle";
               break;
             default:
-              iconName = 'circle';
+              iconName = "circle";
           }
 
           return (
@@ -89,25 +98,28 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               key={route.key}
               style={{
                 flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
+                alignItems: "center",
+                justifyContent: "center",
                 paddingTop: 8,
               }}
             >
               {isFocused && (
                 <LinearGradient
-                  colors={[appTheme.colors.primary, appTheme.colors.primaryDark]}
+                  colors={[
+                    appTheme.colors.primary,
+                    appTheme.colors.primaryDark,
+                  ]}
                   style={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: 0,
-                    left: '20%',
-                    right: '20%',
+                    left: "20%",
+                    right: "20%",
                     height: 3,
                     borderRadius: 3,
                   }}
                 />
               )}
-              
+
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityState={isFocused ? { selected: true } : {}}
@@ -116,34 +128,48 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 onPress={onPress}
                 onLongPress={onLongPress}
                 style={{
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                   paddingHorizontal: 12,
                   paddingVertical: 8,
                   borderRadius: 12,
-                  backgroundColor: isFocused ? appTheme.colors.primary + '10' : 'transparent',
+                  backgroundColor: isFocused
+                    ? appTheme.colors.primary + "10"
+                    : "transparent",
                   minWidth: 60,
                 }}
               >
-                <View style={{
-                  padding: 8,
-                  borderRadius: 12,
-                  backgroundColor: isFocused ? appTheme.colors.primary : 'transparent',
-                }}>
+                <View
+                  style={{
+                    padding: 8,
+                    borderRadius: 12,
+                    backgroundColor: isFocused
+                      ? appTheme.colors.primary
+                      : "transparent",
+                  }}
+                >
                   <MaterialCommunityIcons
                     name={iconName}
                     size={24}
-                    color={isFocused ? appTheme.colors.white : appTheme.colors.textSecondary}
+                    color={
+                      isFocused
+                        ? appTheme.colors.white
+                        : appTheme.colors.textSecondary
+                    }
                   />
                 </View>
-                
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: isFocused ? '600' : 'normal',
-                  color: isFocused ? appTheme.colors.primary : appTheme.colors.textSecondary,
-                  marginTop: 4,
-                  textAlign: 'center',
-                }}>
+
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: isFocused ? "600" : "normal",
+                    color: isFocused
+                      ? appTheme.colors.primary
+                      : appTheme.colors.textSecondary,
+                    marginTop: 4,
+                    textAlign: "center",
+                  }}
+                >
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -158,53 +184,53 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 export default function MainScreen() {
   return (
     <>
-      <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor={appTheme?.colors?.background || '#F8FAFC'}
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={appTheme?.colors?.background || "#F8FAFC"}
         translucent={false}
       />
-      
+
       <Tab.Navigator
         initialRouteName="Diet"
         tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{
           headerShown: false,
-          tabBarStyle: { display: 'none' }, // Hide default tab bar
+          tabBarStyle: { display: "none" }, // Hide default tab bar
         }}
       >
-        <Tab.Screen 
-          name="Diet" 
-          component={DietScreen} 
-          options={{ 
-            title: 'Diyet',
-            tabBarLabel: 'Diyet',
-          }} 
+        <Tab.Screen
+          name="Diet"
+          component={DietScreen}
+          options={{
+            title: "Diyet",
+            tabBarLabel: "Diyet",
+          }}
         />
-        <Tab.Screen 
-          name="Workout" 
-          component={WorkoutDashboardScreen} 
-          options={{ 
-            title: 'Antrenman',
-            tabBarLabel: 'Antrenman',
-          }} 
+        <Tab.Screen
+          name="Workout"
+          component={WorkoutDashboardScreen}
+          options={{
+            title: "Antrenman",
+            tabBarLabel: "Antrenman",
+          }}
         />
-        <Tab.Screen 
-          name="Progress" 
-          component={ProgressScreen} 
-          options={{ 
-            title: 'İlerleme',
-            tabBarLabel: 'İlerleme',
-          }} 
+        <Tab.Screen
+          name="Progress"
+          component={ProgressDashboardScreen}
+          options={{
+            title: "İlerleme",
+            tabBarLabel: "İlerleme",
+          }}
         />
-        <Tab.Screen 
-          name="Profile" 
-          component={ProfileScreen} 
-          options={{ 
-            title: 'Profil',
-            tabBarLabel: 'Profil',
-          }} 
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            title: "Profil",
+            tabBarLabel: "Profil",
+          }}
         />
       </Tab.Navigator>
     </>
   );
-} 
+}
