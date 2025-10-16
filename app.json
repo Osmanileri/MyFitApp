@@ -47,11 +47,10 @@
     },
     "plugins": ["expo-sqlite"],
     "extra": {
-      "FATSECRET_CLIENT_ID": "${FATSECRET_CLIENT_ID}",
-      "FATSECRET_CLIENT_SECRET": "${FATSECRET_CLIENT_SECRET}",
+      "FATSECRET_CLIENT_ID": "11ba9e1279794e83a39628a8e1148b51",
+      "FATSECRET_CLIENT_SECRET": "7924dbf518014edc81f8d8f673b40f2b",
       "FATSECRET_BASE_URL": "https://platform.fatsecret.com/rest/server.api",
-      "FATSECRET_TOKEN_URL": "https://oauth.fatsecret.com/connect/token",
-      "FATSECRET_PROXY_URL": "http://10.0.2.2:3001"
+      "FATSECRET_TOKEN_URL": "https://oauth.fatsecret.com/connect/token"
     }
   }
 }
