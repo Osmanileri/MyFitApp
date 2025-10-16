@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import AuthService from "../services/authService";
 import sqliteService from "../services/SQLiteService";
+import supabaseAuthService from "../services/supabaseAuthService";
 
-// Demo users for local testing
+// Demo mode flag - set to false to use Supabase
+const DEMO_MODE = false;
+
+// Demo users for local testing (only when DEMO_MODE = true)
 const DEMO_USERS = {
   "demo@fitapp.com": {
     password: "demo123",
@@ -125,58 +128,75 @@ const useAuthStore = create(
         }
       },
 
-      // Register Function (uses local AuthService)
+      // Register Function - Supabase Integration
       register: async (email, password, userInfo) => {
         try {
           set({ isLoading: true, error: null });
 
-          const name =
-            userInfo?.displayName ||
-            `${userInfo?.firstName || ""} ${userInfo?.lastName || ""}`.trim();
-          const registerResult = await AuthService.register({
-            name,
+          // Validate password strength
+          const passwordValidation =
+            supabaseAuthService.validatePassword(password);
+          if (!passwordValidation.valid) {
+            set({ error: passwordValidation.error, isLoading: false });
+            return { success: false, error: passwordValidation.error };
+          }
+
+          // Validate email
+          if (!supabaseAuthService.validateEmail(email)) {
+            set({ error: "Invalid email format", isLoading: false });
+            return { success: false, error: "Invalid email format" };
+          }
+
+          // Supabase Auth Sign Up
+          const fullName =
+            userInfo.displayName ||
+            `${userInfo.firstName || ""} ${userInfo.lastName || ""}`.trim();
+          const result = await supabaseAuthService.signUp(
             email,
             password,
-            confirmPassword: password,
-          });
+            fullName
+          );
 
-          if (!registerResult.success || !registerResult.user) {
-            const errMsg = registerResult.error || "Kayıt başarısız";
-            set({ error: errMsg, isLoading: false });
-            return { success: false, error: errMsg };
-          }
-
-          // Persist additional profile fields
-          if (userInfo && Object.keys(userInfo).length > 0) {
-            const profileResult = await AuthService.updateProfile({
-              displayName: userInfo.displayName || name,
-              firstName: userInfo.firstName || "",
-              lastName: userInfo.lastName || "",
-              age: userInfo.age || null,
-              gender: userInfo.gender || "",
-              height: userInfo.height || null,
-              weight: userInfo.weight || null,
-              activityLevel: userInfo.activityLevel || "sedentary",
-              goal: userInfo.goal || "maintain",
+          if (!result.success) {
+            set({
+              error: result.error,
+              isLoading: false,
             });
-
-            if (profileResult.success && profileResult.user) {
-              set({
-                user: profileResult.user,
-                isAuthenticated: true,
-                isLoading: false,
-              });
-              return { success: true };
-            }
+            return {
+              success: false,
+              error: result.error,
+            };
           }
 
-          // Fallback: set user from register result
+          // If email verification is required
+          if (result.requiresEmailVerification) {
+            set({ isLoading: false });
+            return {
+              success: true,
+              requiresEmailVerification: true,
+              message: result.message,
+            };
+          }
+
+          // Set user state with Supabase user data
+          const userData = {
+            uid: result.user.id,
+            email: result.user.email,
+            displayName: fullName,
+            ...userInfo,
+          };
+
           set({
-            user: registerResult.user,
+            user: userData,
             isAuthenticated: true,
             isLoading: false,
           });
-          return { success: true };
+
+          // Initialize all stores for the new user
+          await get().initializeAllStores();
+
+          console.log("✅ Registration successful with Supabase");
+          return { success: true, user: userData };
         } catch (error) {
           console.error("Registration error:", error);
           set({ error: error.message, isLoading: false });
@@ -184,26 +204,55 @@ const useAuthStore = create(
         }
       },
 
-      // Login Function (uses local AuthService)
+      // Login Function - Supabase Integration
       login: async (email, password) => {
         try {
           set({ isLoading: true, error: null });
 
-          // Önce demo kullanıcısı kontrol et
-          const demoResult = await get().loginDemo(email, password);
-          if (demoResult.success) {
-            return demoResult;
+          // Demo mode fallback
+          if (DEMO_MODE) {
+            const demoResult = await get().loginDemo(email, password);
+            if (demoResult.success) {
+              return demoResult;
+            }
           }
 
-          const result = await AuthService.login({ email, password });
-          if (!result.success || !result.user) {
-            const errMsg = result.error || "Giriş yapılamadı";
-            set({ error: errMsg, isLoading: false });
-            return { success: false, error: errMsg };
+          // Supabase Auth Sign In
+          const result = await supabaseAuthService.signIn(email, password);
+
+          if (!result.success) {
+            set({
+              error: result.error,
+              isLoading: false,
+            });
+            return {
+              success: false,
+              error: result.error,
+            };
           }
 
-          set({ user: result.user, isAuthenticated: true, isLoading: false });
-          return { success: true };
+          // Set user state with Supabase user data
+          const userData = {
+            uid: result.user.id,
+            email: result.user.email,
+            displayName:
+              result.profile?.full_name ||
+              result.user.user_metadata?.full_name ||
+              "",
+            ...result.profile,
+          };
+
+          set({
+            user: userData,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+
+          // Initialize all stores for the user
+          await get().initializeAllStores();
+
+          console.log("✅ Login successful with Supabase");
+          return { success: true, user: userData };
         } catch (error) {
           console.error("Login error:", error);
           set({ error: error.message, isLoading: false });
@@ -211,20 +260,23 @@ const useAuthStore = create(
         }
       },
 
-      // Logout Function (uses local AuthService)
+      // Logout Function - Supabase Integration
       logout: async () => {
         try {
           set({ isLoading: true });
 
-          // Demo kullanıcısı ise sadece local state'i temizle
-          const currentUser = get().user;
-          if (currentUser && currentUser.uid === "demo-user-id") {
-            set({ user: null, isAuthenticated: false, isLoading: false });
-            return { success: true };
+          // Supabase Sign Out
+          if (!DEMO_MODE) {
+            const result = await supabaseAuthService.signOut();
+            if (!result.success) {
+              console.error("Logout error:", result.error);
+            }
           }
 
-          await AuthService.logout();
+          // Clear local state
           set({ user: null, isAuthenticated: false, isLoading: false });
+
+          console.log("✅ Logout successful");
           return { success: true };
         } catch (error) {
           console.error("Logout error:", error);
@@ -233,13 +285,13 @@ const useAuthStore = create(
         }
       },
 
-      // Reset Password Function (uses local AuthService)
+      // Reset Password Function - Supabase Integration
       resetPassword: async (email) => {
         try {
           set({ isLoading: true, error: null });
 
-          // Demo kullanıcısı için özel mesaj
-          if (DEMO_USERS[email]) {
+          // Demo mode fallback
+          if (DEMO_MODE && DEMO_USERS[email]) {
             set({ isLoading: false });
             return {
               success: true,
@@ -247,9 +299,26 @@ const useAuthStore = create(
             };
           }
 
-          const result = await AuthService.resetPassword(email);
+          // Validate email
+          if (!supabaseAuthService.validateEmail(email)) {
+            set({ error: "Invalid email format", isLoading: false });
+            return { success: false, error: "Invalid email format" };
+          }
+
+          // Supabase Send Password Reset Email
+          const result = await supabaseAuthService.sendPasswordResetEmail(
+            email
+          );
+
           set({ isLoading: false });
-          return result;
+
+          if (!result.success) {
+            set({ error: result.error });
+            return { success: false, error: result.error };
+          }
+
+          console.log("✅ Password reset email sent");
+          return { success: true, message: result.message };
         } catch (error) {
           console.error("Reset password error:", error);
           set({ error: error.message, isLoading: false });
@@ -257,7 +326,7 @@ const useAuthStore = create(
         }
       },
 
-      // Update Profile Function (uses local AuthService)
+      // Update Profile Function - Supabase Integration
       updateProfile: async (userInfo) => {
         try {
           set({ isLoading: true, error: null });
@@ -265,24 +334,39 @@ const useAuthStore = create(
 
           if (!currentUser) throw new Error("No user logged in");
 
-          // Demo kullanıcısı için local update ve SQLite'a kaydet
-          if (currentUser.uid === "demo-user-id") {
+          // Demo mode fallback
+          if (DEMO_MODE && currentUser.uid === "demo-user-id") {
             const updatedUser = { ...currentUser, ...userInfo };
             await sqliteService.saveUser(updatedUser);
 
-            set({ user: updatedUser, isLoading: false });
+            set({
+              user: updatedUser,
+              isLoading: false,
+            });
+            console.log("✅ Demo profile updated");
             return { success: true };
           }
 
-          const result = await AuthService.updateProfile({ ...userInfo });
-          if (result.success && result.user) {
-            set({ user: result.user, isLoading: false });
-            return { success: true };
+          // Supabase Update User Profile
+          const result = await supabaseAuthService.updateUserProfile(
+            currentUser.uid,
+            userInfo
+          );
+
+          if (!result.success) {
+            set({ error: result.error, isLoading: false });
+            return { success: false, error: result.error };
           }
 
-          // Fallback local update
-          set({ user: { ...currentUser, ...userInfo }, isLoading: false });
-          return { success: true };
+          // Update local state
+          const updatedUser = { ...currentUser, ...userInfo };
+          set({
+            user: updatedUser,
+            isLoading: false,
+          });
+
+          console.log("✅ Profile updated with Supabase");
+          return { success: true, profile: result.profile };
         } catch (error) {
           console.error("Update profile error:", error);
           set({ error: error.message, isLoading: false });
@@ -290,26 +374,141 @@ const useAuthStore = create(
         }
       },
 
-      // Initialize Auth State (uses local AuthService)
+      // Initialize Auth State - Supabase Integration
       initializeAuth: () => {
         try {
-          (async () => {
-            const currentUser = await AuthService.getCurrentUser();
-            if (currentUser) {
-              set({
-                user: currentUser,
-                isAuthenticated: true,
-                isLoading: false,
-              });
-            } else {
-              set({ isLoading: false });
+          // Supabase Auth State Listener
+          const { data: authListener } = supabaseAuthService.onAuthStateChange(
+            async (event, session) => {
+              console.log("🔐 Auth state changed:", event);
+
+              // Demo mode - ignore Supabase auth state
+              const currentUser = get().user;
+              if (
+                DEMO_MODE &&
+                currentUser &&
+                currentUser.uid === "demo-user-id"
+              ) {
+                return;
+              }
+
+              if (event === "SIGNED_IN" && session) {
+                try {
+                  // Get user profile from Supabase
+                  const profileResult =
+                    await supabaseAuthService.getUserProfile(session.user.id);
+
+                  const userData = {
+                    uid: session.user.id,
+                    email: session.user.email,
+                    displayName:
+                      profileResult.profile?.full_name ||
+                      session.user.user_metadata?.full_name ||
+                      "",
+                    ...profileResult.profile,
+                  };
+
+                  set({
+                    user: userData,
+                    isAuthenticated: true,
+                    isLoading: false,
+                  });
+
+                  // Initialize all stores
+                  await get().initializeAllStores();
+
+                  console.log("✅ User authenticated and stores initialized");
+                } catch (error) {
+                  console.error("Error fetching user data:", error);
+                  set({ error: error.message, isLoading: false });
+                }
+              } else if (event === "SIGNED_OUT") {
+                // Only logout if not demo user
+                const currentUser = get().user;
+                if (
+                  !DEMO_MODE ||
+                  !currentUser ||
+                  currentUser.uid !== "demo-user-id"
+                ) {
+                  set({ user: null, isAuthenticated: false, isLoading: false });
+                  console.log("✅ User signed out");
+                }
+              } else if (event === "TOKEN_REFRESHED") {
+                console.log("🔄 Session token refreshed");
+              }
             }
-          })();
-          return () => {}; // no-op unsubscribe
+          );
+
+          // Return unsubscribe function
+          return () => {
+            authListener?.subscription?.unsubscribe();
+          };
         } catch (error) {
           console.error("Auth initialization error:", error);
           set({ isLoading: false });
           return () => {}; // Return empty unsubscribe function
+        }
+      },
+
+      // Google Sign In - Supabase Integration
+      signInWithGoogle: async () => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const result = await supabaseAuthService.signInWithGoogle();
+
+          if (!result.success) {
+            set({ error: result.error, isLoading: false });
+            return { success: false, error: result.error };
+          }
+
+          // OAuth flow will handle the redirect and auth state change
+          set({ isLoading: false });
+          console.log("✅ Google sign-in initiated");
+          return { success: true, message: result.message };
+        } catch (error) {
+          console.error("Google sign-in error:", error);
+          set({ error: error.message, isLoading: false });
+          return { success: false, error: error.message };
+        }
+      },
+
+      // Check Session on App Start
+      checkSession: async () => {
+        try {
+          set({ isLoading: true });
+
+          const result = await supabaseAuthService.getSession();
+
+          if (result.success && result.session) {
+            // Get user profile
+            const profileResult = await supabaseAuthService.getUserProfile(
+              result.session.user.id
+            );
+
+            const userData = {
+              uid: result.session.user.id,
+              email: result.session.user.email,
+              displayName: profileResult.profile?.full_name || "",
+              ...profileResult.profile,
+            };
+
+            set({
+              user: userData,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+
+            console.log("✅ Session restored");
+            return { success: true, user: userData };
+          }
+
+          set({ isLoading: false });
+          return { success: false };
+        } catch (error) {
+          console.error("Check session error:", error);
+          set({ isLoading: false });
+          return { success: false, error: error.message };
         }
       },
     }),

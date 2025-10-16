@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "myfitapp",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -20,13 +21,37 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "nqsvaqeiaovhnlolvixb.supabase.co",
+              "pathPrefix": "/auth/v1/callback"
+            },
+            {
+              "scheme": "myfitapp",
+              "host": "auth",
+              "pathPrefix": "/callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-sqlite"
-    ]
+    "plugins": ["expo-sqlite"],
+    "extra": {
+      "FATSECRET_CLIENT_ID": "${FATSECRET_CLIENT_ID}",
+      "FATSECRET_CLIENT_SECRET": "${FATSECRET_CLIENT_SECRET}",
+      "FATSECRET_BASE_URL": "https://platform.fatsecret.com/rest/server.api",
+      "FATSECRET_TOKEN_URL": "https://oauth.fatsecret.com/connect/token",
+      "FATSECRET_PROXY_URL": "http://10.0.2.2:3001"
+    }
   }
 }

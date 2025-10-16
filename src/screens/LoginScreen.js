@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,18 +9,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import useAuthStore from '../store/authStore';
-import { appTheme } from '../theme/simpleTheme';
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import useAuthStore from "../store/authStore";
+import { appTheme } from "../theme/simpleTheme";
 
 const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const { login, signInWithGoogle, isLoading, error, clearError } =
+    useAuthStore();
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,25 +30,25 @@ const LoginScreen = ({ navigation }) => {
 
   const validateInputs = () => {
     let isValid = true;
-    
+
     if (!email) {
-      setEmailError('Email adresi gereklidir');
+      setEmailError("Email adresi gereklidir");
       isValid = false;
     } else if (!validateEmail(email)) {
-      setEmailError('Geçerli bir email adresi giriniz');
+      setEmailError("Geçerli bir email adresi giriniz");
       isValid = false;
     } else {
-      setEmailError('');
+      setEmailError("");
     }
 
     if (!password) {
-      setPasswordError('Şifre gereklidir');
+      setPasswordError("Şifre gereklidir");
       isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Şifre en az 6 karakter olmalıdır');
+    } else if (password.length < 8) {
+      setPasswordError("Şifre en az 8 karakter olmalıdır");
       isValid = false;
     } else {
-      setPasswordError('');
+      setPasswordError("");
     }
 
     return isValid;
@@ -55,31 +56,46 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     if (!validateInputs()) return;
-    
+
     clearError();
     const result = await login(email, password);
-    
+
     if (result.success) {
       // Navigation will be handled by App.js based on auth state
     } else {
-      Alert.alert('Giriş Hatası', result.error || 'Giriş yapılamadı');
+      Alert.alert("Giriş Hatası", result.error || "Giriş yapılamadı");
     }
   };
 
   const handleDemoLogin = async () => {
-    setEmail('demo@fitapp.com');
-    setPassword('demo123');
-    
-    const result = await login('demo@fitapp.com', 'demo123');
+    setEmail("demo@fitapp.com");
+    setPassword("demo123");
+
+    const result = await login("demo@fitapp.com", "demo123");
     if (!result.success) {
-      Alert.alert('Demo Giriş Hatası', result.error || 'Demo hesabına giriş yapılamadı');
+      Alert.alert(
+        "Demo Giriş Hatası",
+        result.error || "Demo hesabına giriş yapılamadı"
+      );
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    clearError();
+    const result = await signInWithGoogle();
+
+    if (!result.success) {
+      Alert.alert(
+        "Google Giriş Hatası",
+        result.error || "Google ile giriş yapılamadı"
+      );
     }
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <LinearGradient
         colors={[appTheme.colors.primary, appTheme.colors.primaryDark]}
@@ -87,7 +103,9 @@ const LoginScreen = ({ navigation }) => {
       >
         <View style={styles.content}>
           <Text style={styles.title}>MyFitApp</Text>
-          <Text style={styles.subtitle}>Sağlıklı yaşam yolculuğunuz başlıyor</Text>
+          <Text style={styles.subtitle}>
+            Sağlıklı yaşam yolculuğunuz başlıyor
+          </Text>
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
@@ -101,7 +119,9 @@ const LoginScreen = ({ navigation }) => {
                 autoCapitalize="none"
                 autoComplete="email"
               />
-              {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+              {emailError ? (
+                <Text style={styles.errorText}>{emailError}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputContainer}>
@@ -114,7 +134,9 @@ const LoginScreen = ({ navigation }) => {
                 secureTextEntry
                 autoComplete="password"
               />
-              {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+              {passwordError ? (
+                <Text style={styles.errorText}>{passwordError}</Text>
+              ) : null}
             </View>
 
             <TouchableOpacity
@@ -129,6 +151,22 @@ const LoginScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
 
+            <View style={styles.dividerContainer}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>VEYA</Text>
+              <View style={styles.divider} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.googleButton}
+              onPress={handleGoogleSignIn}
+              disabled={isLoading}
+            >
+              <Text style={styles.googleButtonText}>
+                🔐 Google ile Giriş Yap
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.demoButton}
               onPress={handleDemoLogin}
@@ -139,14 +177,12 @@ const LoginScreen = ({ navigation }) => {
 
             <View style={styles.linksContainer}>
               <TouchableOpacity
-                onPress={() => navigation.navigate('ForgotPassword')}
+                onPress={() => navigation.navigate("ForgotPassword")}
               >
                 <Text style={styles.linkText}>Şifremi Unuttum</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Register')}
-              >
+              <TouchableOpacity onPress={() => navigation.navigate("Register")}>
                 <Text style={styles.linkText}>Hesap Oluştur</Text>
               </TouchableOpacity>
             </View>
@@ -166,20 +202,20 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 24,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: appTheme.colors.white,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     color: appTheme.colors.white,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 48,
     opacity: 0.9,
   },
@@ -200,10 +236,10 @@ const styles = StyleSheet.create({
     ...appTheme.shadows.small,
   },
   inputError: {
-    borderColor: appTheme.colors.error || '#ff4444',
+    borderColor: appTheme.colors.error || "#ff4444",
   },
   errorText: {
-    color: appTheme.colors.error || '#ff4444',
+    color: appTheme.colors.error || "#ff4444",
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,
@@ -212,38 +248,69 @@ const styles = StyleSheet.create({
     backgroundColor: appTheme.colors.white,
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 8,
     ...appTheme.shadows.medium,
   },
   loginButtonText: {
     color: appTheme.colors.primary,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: appTheme.colors.white,
+    opacity: 0.3,
+  },
+  dividerText: {
+    color: appTheme.colors.white,
+    fontSize: 12,
+    fontWeight: "600",
+    marginHorizontal: 12,
+    opacity: 0.7,
+  },
+  googleButton: {
+    backgroundColor: appTheme.colors.white,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 12,
+    ...appTheme.shadows.medium,
+  },
+  googleButtonText: {
+    color: appTheme.colors.text,
+    fontSize: 16,
+    fontWeight: "bold",
   },
   demoButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: appTheme.colors.white,
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   demoButtonText: {
     color: appTheme.colors.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   linksContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 24,
   },
   linkText: {
     color: appTheme.colors.white,
     fontSize: 14,
-    textDecorationLine: 'underline',
+    textDecorationLine: "underline",
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

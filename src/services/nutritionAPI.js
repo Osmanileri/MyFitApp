@@ -1,11 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { turkishFoodDatabase } from '../data/turkishFoodDatabase';
+import Constants from 'expo-constants';
+let UpdatesModule = null;
+try {
+  // Optional in dev/prod to read manifest extra
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  UpdatesModule = require('expo-updates');
+} catch {}
+// Local Turkish database is no longer used for Diet search/UI. All data comes from FatSecret API.
 
-// FatSecret API configuration - Using environment variables for security
-const FATSECRET_CLIENT_ID = '11ba9e1279794e83a39628a8e1148b51';
-const FATSECRET_CLIENT_SECRET = '01cc831e50e24be6af5d84d5653542e4';
-const FATSECRET_BASE_URL = process.env.FATSECRET_BASE_URL || 'https://platform.fatsecret.com/rest/server.api';
-const FATSECRET_TOKEN_URL = process.env.FATSECRET_TOKEN_URL || 'https://oauth.fatsecret.com/connect/token';
+// FatSecret API configuration - prefer app.json extra/env; fallback to defaults
+const EXTRA = (
+  (Constants?.expoConfig && Constants.expoConfig.extra) ||
+  (Constants?.manifest && Constants.manifest.extra) ||
+  (UpdatesModule?.manifest && UpdatesModule.manifest.extra) ||
+  {}
+);
+const FATSECRET_CLIENT_ID = EXTRA.FATSECRET_CLIENT_ID || process.env.FATSECRET_CLIENT_ID || 'your_client_id_here';
+const FATSECRET_CLIENT_SECRET = EXTRA.FATSECRET_CLIENT_SECRET || process.env.FATSECRET_CLIENT_SECRET || 'your_client_secret_here';
+const FATSECRET_BASE_URL = EXTRA.FATSECRET_BASE_URL || process.env.FATSECRET_BASE_URL || 'https://platform.fatsecret.com/rest/server.api';
+const FATSECRET_TOKEN_URL = EXTRA.FATSECRET_TOKEN_URL || process.env.FATSECRET_TOKEN_URL || 'https://oauth.fatsecret.com/connect/token';
 
 // Cache keys
 const CACHE_KEY_PREFIX = 'nutrition_cache_';
@@ -501,8 +514,43 @@ class NutritionAPI {
 
   // Check if API credentials are configured
   isConfigured() {
-    return FATSECRET_CLIENT_ID !== 'your_client_id_here' && 
-           FATSECRET_CLIENT_SECRET !== 'your_client_secret_here';
+    return Boolean(FATSECRET_CLIENT_ID && FATSECRET_CLIENT_SECRET &&
+      FATSECRET_CLIENT_ID !== 'your_client_id_here' &&
+      FATSECRET_CLIENT_SECRET !== 'your_client_secret_here');
+  }
+
+  // Robust base64 encoder (works in RN and Expo)
+  encodeBase64(str) {
+    try {
+      if (typeof globalThis.btoa === 'function') {
+        return globalThis.btoa(str);
+      }
+    } catch {}
+    try {
+      // eslint-disable-next-line no-undef
+      if (typeof Buffer !== 'undefined') {
+        // @ts-ignore
+        return Buffer.from(str, 'utf8').toString('base64');
+      }
+    } catch {}
+    // Minimal polyfill
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    let output = '';
+    let i = 0;
+    const bytes = unescape(encodeURIComponent(str));
+    while (i < bytes.length) {
+      const c1 = bytes.charCodeAt(i++);
+      const c2 = bytes.charCodeAt(i++);
+      const c3 = bytes.charCodeAt(i++);
+      const e1 = c1 >> 2;
+      const e2 = ((c1 & 3) << 4) | (c2 >> 4);
+      let e3 = ((c2 & 15) << 2) | (c3 >> 6);
+      let e4 = c3 & 63;
+      if (isNaN(c2)) { e3 = e4 = 64; }
+      else if (isNaN(c3)) { e4 = 64; }
+      output += chars.charAt(e1) + chars.charAt(e2) + chars.charAt(e3) + chars.charAt(e4);
+    }
+    return output;
   }
 
   // Get OAuth 2.0 access token for FatSecret API
@@ -526,11 +574,11 @@ class NutritionAPI {
 
       // Request new token if configured
       if (!this.isConfigured()) {
-        throw new Error('FatSecret API credentials not configured. Using local database only.');
+        throw new Error('FatSecret API credentials not configured.');
       }
 
       const credentials = `${FATSECRET_CLIENT_ID}:${FATSECRET_CLIENT_SECRET}`;
-      const encodedCredentials = btoa(credentials);
+      const encodedCredentials = this.encodeBase64(credentials);
 
       const response = await fetch(FATSECRET_TOKEN_URL, {
         method: 'POST',
@@ -557,8 +605,7 @@ class NutritionAPI {
 
       return this.accessToken;
     } catch (error) {
-      console.warn('Token acquisition error:', error.message);
-      // Continue with local database only
+      console.warn('Token acquisition error:', error?.message || String(error));
       return null;
     }
   }
@@ -609,56 +656,36 @@ class NutritionAPI {
     }
   }
 
-  // Search Turkish foods locally with fuzzy matching
-  searchTurkishFoods(query) {
-    const searchQuery = query.toLowerCase().trim();
-    const results = [];
-
-    // Exact matches first
-    Object.entries(TURKISH_FOODS_DB).forEach(([key, food]) => {
-      if (key === searchQuery || food.name.toLowerCase() === searchQuery) {
-        results.push({
-          ...food,
-          id: key,
-          source: 'local',
-          relevance: 100
-        });
-      }
-    });
-
-    // Partial matches
-    Object.entries(TURKISH_FOODS_DB).forEach(([key, food]) => {
-      if (key.includes(searchQuery) || food.name.toLowerCase().includes(searchQuery)) {
-        const alreadyAdded = results.some(item => item.id === key);
-        if (!alreadyAdded) {
-          results.push({
-            ...food,
-            id: key,
-            source: 'local',
-            relevance: 80
-          });
-        }
-      }
-    });
-
-    // Sort by relevance and return top 20
-    return results
-      .sort((a, b) => b.relevance - a.relevance)
-      .slice(0, 20);
-  }
+  // Local Turkish search removed; app now uses FatSecret API exclusively for Diet
 
   // Search food using FatSecret API
   async searchFoodAPI(query) {
-    if (!this.isConfigured()) {
-      throw new Error('FatSecret API credentials not configured');
-    }
-
     try {
+      // If a proxy server is available, use it and SKIP token acquisition entirely
+      const proxyUrl =
+        EXTRA.FATSECRET_PROXY_URL ||
+        process.env.FATSECRET_PROXY_URL ||
+        process.env.EXPO_PUBLIC_FATSECRET_PROXY_URL;
+
+      if (proxyUrl) {
+        const response = await fetch(`${proxyUrl}/fatsecret/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+          throw new Error(`Proxy search failed: ${response.status}`);
+        }
+        const data = await response.json();
+        return data.results || [];
+      }
+
+      // Direct mode: require credentials and fetch with Bearer token
+      if (!this.isConfigured()) {
+        throw new Error('FatSecret API credentials not configured');
+      }
+
       const accessToken = await this.getAccessToken();
       if (!accessToken) {
         throw new Error('Could not obtain access token');
       }
-      
+
       const params = new URLSearchParams({
         method: 'foods.search',
         search_expression: query,
@@ -678,23 +705,17 @@ class NutritionAPI {
       }
 
       const data = await response.json();
-      
-      if (!data.foods || !data.foods.food) {
-        return [];
-      }
-
-      // Normalize the response
+      if (!data.foods || !data.foods.food) return [];
       const foods = Array.isArray(data.foods.food) ? data.foods.food : [data.foods.food];
-      
       return foods.map(food => ({
         id: food.food_id,
         name: food.food_name,
-        calories: parseInt(food.food_description.match(/Calories: (\d+)/)?.[1] || '0'),
-        protein: parseFloat(food.food_description.match(/Protein: ([\d.]+)g/)?.[1] || '0'),
-        carbs: parseFloat(food.food_description.match(/Carbs: ([\d.]+)g/)?.[1] || '0'),
-        fat: parseFloat(food.food_description.match(/Fat: ([\d.]+)g/)?.[1] || '0'),
-        fiber: parseFloat(food.food_description.match(/Fiber: ([\d.]+)g/)?.[1] || '0'),
-        portion: food.food_description.split(' - ')[0] || '100g',
+        calories: parseInt((food.food_description || '').match(/Calories: (\d+)/)?.[1] || '0'),
+        protein: parseFloat((food.food_description || '').match(/Protein: ([\d.]+)g/)?.[1] || '0'),
+        carbs: parseFloat((food.food_description || '').match(/Carbs: ([\d.]+)g/)?.[1] || '0'),
+        fat: parseFloat((food.food_description || '').match(/Fat: ([\d.]+)g/)?.[1] || '0'),
+        fiber: parseFloat((food.food_description || '').match(/Fiber: ([\d.]+)g/)?.[1] || '0'),
+        portion: (food.food_description || '').split(' - ')[0] || '100g',
         source: 'fatsecret',
         icon: 'food'
       }));
@@ -705,7 +726,7 @@ class NutritionAPI {
     }
   }
 
-  // Main search function that combines local and API results
+  // Main search function (FatSecret API only)
   async searchFood(query) {
     if (!query || query.length < 2) {
       return [];
@@ -722,36 +743,21 @@ class NutritionAPI {
     }
 
     try {
-      // Always search local Turkish database first
-      const localResults = this.searchTurkishFoods(query);
-      
-      let allResults = [...localResults];
-
-      // Try to get API results if configured and online
-      if (this.isOnline && this.isConfigured()) {
-        try {
-          const apiResults = await this.searchFoodAPI(query);
-          allResults = [...allResults, ...apiResults];
-        } catch (apiError) {
-          console.warn('API search failed, using local results only:', apiError.message);
-        }
+      if (!this.isOnline || !this.isConfigured()) {
+        return [];
       }
 
-      // Remove duplicates and limit results
-      const uniqueResults = this.removeDuplicates(allResults);
-      const finalResults = uniqueResults.slice(0, 15);
+      const apiResults = await this.searchFoodAPI(query);
+      const finalResults = apiResults.slice(0, 25);
 
-      // Cache the results
       if (this.cacheEnabled) {
         await this.saveToCache(cacheKey, finalResults);
       }
 
       return finalResults;
-
     } catch (error) {
       console.error('Search error:', error);
-      // Fallback to local search only
-      return this.searchTurkishFoods(query);
+      return [];
     }
   }
 
@@ -768,38 +774,29 @@ class NutritionAPI {
     });
   }
 
-  // Get detailed food information
-  async getFoodDetails(foodId, source = 'local') {
-    if (source === 'local') {
-      return TURKISH_FOODS_DB[foodId] || null;
-    }
-
-    if (source === 'fatsecret' && this.isConfigured()) {
+  // Get detailed food information (FatSecret only for Diet)
+  async getFoodDetails(foodId, source = 'fatsecret') {
+    if (source === 'fatsecret' && (this.isConfigured() || EXTRA.FATSECRET_PROXY_URL || process.env.FATSECRET_PROXY_URL || process.env.EXPO_PUBLIC_FATSECRET_PROXY_URL)) {
       try {
-        const accessToken = await this.getAccessToken();
-        if (!accessToken) {
-          throw new Error('Could not obtain access token');
+        const proxyUrl =
+          EXTRA.FATSECRET_PROXY_URL ||
+          process.env.FATSECRET_PROXY_URL ||
+          process.env.EXPO_PUBLIC_FATSECRET_PROXY_URL;
+        let data;
+        if (proxyUrl) {
+          const resp = await fetch(`${proxyUrl}/fatsecret/food/${encodeURIComponent(foodId)}`);
+          data = await resp.json();
+          if (data?.result) return data.result;
+        } else {
+          const accessToken = await this.getAccessToken();
+          if (!accessToken) throw new Error('Could not obtain access token');
+          const params = new URLSearchParams({ method: 'food.get', food_id: foodId, format: 'json' });
+          const response = await fetch(`${FATSECRET_BASE_URL}?${params}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+          });
+          data = await response.json();
         }
-
-        const params = new URLSearchParams({
-          method: 'food.get',
-          food_id: foodId,
-          format: 'json'
-        });
-
-        const response = await fetch(`${FATSECRET_BASE_URL}?${params}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`API request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
         
         if (data.food && data.food.servings && data.food.servings.serving) {
           const serving = Array.isArray(data.food.servings.serving) 
@@ -826,17 +823,7 @@ class NutritionAPI {
     return null;
   }
 
-  // Get popular Turkish foods for quick access
-  getPopularTurkishFoods(limit = 10) {
-    return POPULAR_TURKISH_FOODS
-      .slice(0, limit)
-      .map(key => ({
-        ...TURKISH_FOODS_DB[key],
-        id: key,
-        source: 'local'
-      }))
-      .filter(Boolean);
-  }
+  // Popular local foods removed from Diet feature
 
   // Nutrition analysis helpers
   analyzeMacroBalance(foods) {

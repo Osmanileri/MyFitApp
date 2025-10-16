@@ -1,23 +1,23 @@
 // 🏋️‍♂️ PROFESSIONAL MUSCLEWIKI CLONE
 // Using your custom body assets with precise muscle mapping
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   Text,
   Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Body from "react-native-body-highlighter";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-
-const ProfessionalBodyMap = () => {
+const ProfessionalBodyMap = ({ navigation }) => {
   const [currentView, setCurrentView] = useState("front");
   const [selectedMuscle, setSelectedMuscle] = useState(null);
+  const lastTapTime = useRef(0);
+  const lastTappedMuscle = useRef(null);
+  const singleTapTimer = useRef(null);
 
   // Your original muscle names mapped to package names
   const muscleNameMapping = {
@@ -140,10 +140,13 @@ const ProfessionalBodyMap = () => {
 
   // Convert your muscle data to package format
   const getHighlightData = () => {
-    return muscleGroupsData[currentView].map((muscle) => ({
-      slug: muscle.packageName,
-      intensity: muscle.intensity,
-    }));
+    return muscleGroupsData[currentView].map((muscle) => {
+      const isSelected = selectedMuscle === muscle.name;
+      return {
+        slug: muscle.packageName,
+        intensity: isSelected ? 2 : 1, // Seçili ise kırmızı (intensity 2), değilse açık mavi (intensity 1)
+      };
+    });
   };
 
   // Get original muscle name from package name
@@ -153,29 +156,158 @@ const ProfessionalBodyMap = () => {
     return muscle ? muscle.name : packageName;
   };
 
+  // Kas grubuna tıklama işlevi (çift tıklama ile uzun basma simülasyonu)
   const handleMusclePress = useCallback(
-    (bodyPart, side) => {
+    (bodyPart) => {
       const originalName = getOriginalMuscleName(bodyPart.slug);
-      setSelectedMuscle(originalName);
+      const currentTime = Date.now();
 
-      // Navigation or action handler
-      Alert.alert(
-        "Muscle Group",
-        `${originalName} selected! (Exercise navigation will be implemented here)`,
-        [
-          {
-            text: "View Exercises",
-            onPress: () => {
-              // Here you can navigate to exercises for this muscle group
-              console.log("Navigate to exercises for:", originalName);
-            },
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ]
-      );
+      // Önceki timer'ı temizle
+      if (singleTapTimer.current) {
+        clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
+
+      // Çift tıklama kontrolü (300ms içinde aynı kas grubuna)
+      if (
+        currentTime - lastTapTime.current < 300 && 
+        lastTappedMuscle.current === originalName
+      ) {
+        // Çift tıklama - egzersizlere git
+        lastTapTime.current = 0;
+        lastTappedMuscle.current = null;
+        handleMuscleLongPress(bodyPart);
+        return;
+      }
+
+      // Tek tıklama - hemen seçimi yap (gecikme yok)
+      // Aynı kas grubuna tıklanırsa hiçbir şey yapma (kırmızı kalsın)
+      // Sadece farklı kas grubuna tıklanırsa onu seç
+      if (selectedMuscle !== originalName) {
+        setSelectedMuscle(originalName);
+      }
+
+      // Çift tıklama için zaman ve kas grubu bilgisini kaydet
+      lastTapTime.current = currentTime;
+      lastTappedMuscle.current = originalName;
+    },
+    [currentView, selectedMuscle]
+  );
+
+  // Kas grubu adını exerciseAPI kategorisine çevir
+  const mapMuscleToCategory = (muscleName) => {
+    const muscleMap = {
+      'chest': 'Göğüs',
+      'biceps': 'Kol',
+      'triceps': 'Kol',
+      'shoulder': 'Omuz',
+      'rear-shoulder': 'Omuz',
+      'abdominals': 'Karın',
+      'oblique': 'Karın',
+      'forearms': 'Kol',
+      'quads': 'Bacak',
+      'calves': 'Bacak',
+      'calf': 'Bacak',
+      'traps': 'Omuz',
+      'traps-middle': 'Omuz',
+      'glutes': 'Bacak',
+      'hamstring': 'Bacak',
+      'lats': 'Sırt',
+      'lowerback': 'Sırt',
+      'hands': 'Kol'
+    };
+    return muscleMap[muscleName] || 'Diğer';
+  };
+
+  // 🚀 Kas grubuna çift tıklama - Direkt egzersiz ekranına git (Popup yok!)
+  const handleMuscleLongPress = useCallback(
+    async (bodyPart) => {
+      const originalName = getOriginalMuscleName(bodyPart.slug);
+      const category = mapMuscleToCategory(originalName);
+
+      try {
+        console.log(`🚀 ${originalName} (${category}) egzersiz ekranına gidiliyor...`);
+        
+        // ExerciseAPI'den kas grubuna ait egzersizleri getir
+        const ExerciseAPI = require('../../../src/services/exerciseAPI').default;
+        const exercises = await ExerciseAPI.getExercisesByMuscleGroup(category);
+
+        console.log(`✅ ${exercises.length} adet ${category} egzersizi bulundu`);
+
+        // 🎯 POPUP YOK! Direkt navigation yap
+        console.log("🔍 Navigation Debug:", {
+          hasNavigation: !!navigation,
+          navigationType: typeof navigation,
+          navigationKeys: navigation ? Object.keys(navigation) : 'No navigation'
+        });
+
+        if (navigation && navigation.navigate) {
+          try {
+            console.log("🚀 Navigation çağrılıyor: ExerciseList");
+            navigation.navigate('ExerciseList', { 
+              muscleGroup: originalName, 
+              category: category,
+              exercises: exercises,
+              exerciseCount: exercises.length
+            });
+            console.log("✅ Navigation başarılı!");
+          } catch (navError) {
+            console.error("❌ Navigation hatası:", navError);
+            // Fallback: Alert ile bilgi göster
+            Alert.alert(
+              `${category} Egzersizleri`,
+              `${exercises.length} egzersiz bulundu!\n\nNavigation hatası: ${navError.message}`,
+              [{ text: "Tamam" }]
+            );
+          }
+        } else {
+          // Navigation yoksa Alert ile bilgi göster
+          console.log("⚠️ Navigation prop bulunamadı");
+          Alert.alert(
+            `${category} Egzersizleri`,
+            `${exercises.length} egzersiz bulundu!\n\nNavigation prop'u eksik. Lütfen ProfessionalBodyMap'e navigation prop'unu geçin.`,
+            [
+              {
+                text: "Console'da Gör",
+                onPress: () => {
+                  console.log("🎯 Egzersiz Verileri:", {
+                    muscleGroup: originalName,
+                    category: category,
+                    exerciseCount: exercises.length,
+                    exercises: exercises.slice(0, 5).map(ex => ({
+                      id: ex.id,
+                      name: ex.name
+                    }))
+                  });
+                }
+              },
+              { text: "Tamam" }
+            ]
+          );
+        }
+
+        // Başarı feedback'i (isteğe bağlı - kısa toast mesajı)
+        // Toast.show({
+        //   type: 'success',
+        //   text1: `${category} Egzersizleri`,
+        //   text2: `${exercises.length} egzersiz yüklendi`,
+        //   visibilityTime: 2000
+        // });
+
+      } catch (error) {
+        console.error('❌ Egzersiz verisi alınamadı:', error);
+        
+        // Hata durumunda bile popup gösterme, sadece console'da log
+        console.log(`⚠️ ${originalName} egzersizleri yüklenemedi, fallback kullanılıyor`);
+        
+        // Fallback navigation (egzersiz bulunamasa bile ekrana git)
+        // navigation.navigate('ExerciseList', { 
+        //   muscleGroup: originalName, 
+        //   category: category,
+        //   exercises: [],
+        //   error: 'Egzersizler yüklenemedi'
+        // });
+      }
     },
     [currentView]
   );
@@ -187,8 +319,8 @@ const ProfessionalBodyMap = () => {
 
   // Custom colors for different intensities
   const customColors = [
-    "#FF6B35", // Intensity 1 - Orange
-    "#4ECDC4", // Intensity 2 - Teal
+    "#B3D9FF", // Intensity 1 - Açık mavi (varsayılan)
+    "#FF4444", // Intensity 2 - Kırmızı (seçili)
     "#45B7D1", // Intensity 3 - Blue
     "#96CEB4", // Intensity 4 - Light Green
     "#FFEAA7", // Intensity 5 - Yellow
@@ -234,10 +366,12 @@ const ProfessionalBodyMap = () => {
       {/* Info Text */}
       <View style={styles.infoContainer}>
         <Text style={styles.infoText}>
-          Tap on any muscle group to see exercises
+          Kas grubuna tıklayın - Çift tıklayın egzersizler için
         </Text>
         {selectedMuscle && (
-          <Text style={styles.selectedText}>Selected: {selectedMuscle}</Text>
+          <Text style={styles.selectedText}>
+            Seçili: {selectedMuscle}
+          </Text>
         )}
       </View>
 

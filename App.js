@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
+import * as Linking from "expo-linking";
 import { createStackNavigator } from "@react-navigation/stack";
 import { View, ActivityIndicator, Text } from "react-native";
 import { Provider as PaperProvider } from "react-native-paper";
@@ -131,14 +132,71 @@ function AppNavigator() {
     isAuthenticated,
     isLoading,
     initializeAuth,
+    checkSession,
     initializeDemoDb,
     loadDemoUser,
   } = useAuthStore();
+  const linking = {
+    prefixes: [Linking.createURL("/"), "myfitapp://"],
+    config: {
+      screens: {
+        Login: "login",
+        Main: "",
+      },
+    },
+  };
 
-  // Initialize auth state on startup (local AuthService)
+  // Initialize Supabase Auth on startup
   useEffect(() => {
-    const unsubscribe = initializeAuth();
-    return unsubscribe;
+    const initAuth = async () => {
+      try {
+        // Check for existing session (Supabase)
+        await checkSession();
+
+        // Initialize auth state listener (Supabase)
+        const unsubscribe = initializeAuth();
+
+        console.log("✅ Supabase Auth initialized");
+
+        // Cleanup on unmount
+        return () => {
+          if (unsubscribe && typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      } catch (error) {
+        console.error("❌ Auth initialization error:", error);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  // Handle OAuth deep links from Google sign-in
+  useEffect(() => {
+    const handleUrl = async (event) => {
+      try {
+        const url = event.url;
+        if (!url) return;
+        // Delegate to auth service to finalize session
+        const {
+          supabaseAuthService,
+        } = require("./src/services/supabaseAuthService");
+        await supabaseAuthService.handleOpenURL(url);
+      } catch (e) {
+        console.warn("Deep link handling error:", e);
+      }
+    };
+
+    const subscription = Linking.addEventListener("url", handleUrl);
+    // In case the app was cold-started by the link
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   // Initialize app on startup
@@ -209,7 +267,7 @@ function AppNavigator() {
   };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator
         initialRouteName={getInitialRouteName()}
         screenOptions={{ headerShown: false }}
@@ -254,6 +312,20 @@ function AppNavigator() {
           component={ExerciseLibraryScreen}
         />
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
+
+        {/* 🏆 NEW PROFESSIONAL EXERCISE SCREENS */}
+        <Stack.Screen
+          name="ExerciseList"
+          component={
+            require("./src/screens/ProfessionalExerciseListScreen").default
+          }
+        />
+        <Stack.Screen
+          name="ProExerciseDetail"
+          component={
+            require("./src/screens/ProfessionalExerciseDetailScreen").default
+          }
+        />
 
         {/* Progress Screens */}
         <Stack.Screen
